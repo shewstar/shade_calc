@@ -104,7 +104,8 @@ function normalised(perim, diag, height) {
     return [perim_norm, diag_norm];
 }
 function errorcheck() {
-    var error = error_find();
+    var [perim, diag, height] = array_meas();
+    var error = error_find(perim, diag, height);
     return error.toFixed(3);
 }
 
