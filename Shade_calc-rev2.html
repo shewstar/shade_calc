@@ -9,29 +9,33 @@
 	    <script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js'></script>
 </head>
 <style>
-    aside {
-      width: 20%;
-      padding-left: 15px;
-      margin-left: 15px;
-      float: right;
-      font-style: italic;
+    .center {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    input[type='number']{
+        width: 100px;
     }
     </style>
 
 <body>
-    <h1 align="center">Shade Calculator</h1>
-    <form>
-        <table bgcolor="#cccccc" cellpadding="5" cellspacing="0" align="center">
+    <image src="logo-150x150.png" class="center" alt="ASS logo"></image>
+    <h1 align="center">ASS Shade Calculator</h1>
+    <table cellpadding="5" cellspacing="0" align="center">
+        <tr><td></td>
+            <td>
+        <table cellpadding="5" cellspacing="0" align="center">
             <tr>
                 <td align="center" colspan="12">
-                    Number of points <input type="text" id="numpoints" size='1' /><input type="button" value="Generate"
-                        onclick="measurements(parseInt(document.getElementById('numpoints').value));" />
+                    Number of points <input type="number" id="numpoints" size='1' /><input type="button" value="Generate"
+                        onclick="measurements(parseInt(document.getElementById('numpoints').value))" />
                 </td>
             </tr>
         </table>
         
         <div id='measurements'></div>
-        <table align="center">
+        <table align="center"cellpadding="5" cellspacing="0">
             <tr>
                 <td align="center">
                     <input type="button" value="Calculate Error" onclick="disp_error();" />
@@ -39,7 +43,7 @@
             </tr>
         </table>
         <div id='Error'></div>
-        <table align="center">
+        <table align="center" cellpadding="5" cellspacing="0">
             <tr>
                 <td align="center">
                     Adjust size (mm) <input type="number" id="size" size='2' /><input type="button" value="Generate"
@@ -52,9 +56,13 @@
         <table align="center">
             <tr>
                 <td align="center">
-                    <input type="button" value="DRAW" onclick="draw();" />
+                    <input style="background-color: orange" type="button" value="DRAW" onclick="draw();" />
                 </td>
             </tr>
+        </table>
+        </td><td></td>
+    </tr>
+        
         </table>
         <div id="drawing" align="center"></div>
         <script src='shadecode.js'></script>

@@ -1,35 +1,36 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
 
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
-
+var test = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
+var J = 0;
 function measurements(numpoints) {
-    var text = '<table border="1"cellpadding="3" align="center"><tr><th>Perimeters</th></tr>';
+    var text = '<table border="1" cellpadding="6" align="center"><tr><th>Perimeters</th></tr>';
     if (numpoints == 4) {
         for (i = 0; i < fourpoint.length + 2; i++) {
             if (i < 4) {
-                text += "<tr><td>" + fourpoint[i] + '<input type="number" id="' + fourpoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i] + " " + '<input type="number" value="' + test[i] + '" id="' + fourpoint[i] + '" size="6"/></td></tr>';
             } else if (i == 4) {
                 text += "<tr><th>Diagonals</th></tr>";
             } else if (i < 7) {
-                text += "<tr><td>" + fourpoint[i - 1] + '<input type="number" id="' + fourpoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 1] + " " + '<input type="number" value="' + test[i - 1] + '" id="' + fourpoint[i - 1] + '" size="6"/></td></tr>';
             } else if (i == 7) {
                 text += "<tr><th>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fourpoint[i - 2] + '<input type="number" id="' + fourpoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 2] + " " + '<input type="number" value="' + test[i - 2] + '" id="' + fourpoint[i - 2] + '" size="6"/></td></tr>';
             }
         }
     } else if (numpoints == 5) {
         for (i = 0; i < fivepoint.length + 2; i++) {
             if (i < 5) {
-                text += "<tr><td>" + fivepoint[i] + '<input type="number" id="' + fivepoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i] + " " + '<input type="number" id="' + fivepoint[i] + '" size="6"/></td></tr>';
             } else if (i == 5) {
                 text += "<tr><th>Diagonals</th></tr>";
             } else if (i < 11) {
-                text += "<tr><td>" + fivepoint[i - 1] + '<input type="number" id="' + fivepoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 1] + " " + '<input type="number" id="' + fivepoint[i - 1] + '" size="6"/></td></tr>';
             } else if (i == 11) {
                 text += "<tr><th>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fivepoint[i - 2] + '<input type="number" id="' + fivepoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 2] + " " + '<input type="number" id="' + fivepoint[i - 2] + '" size="6"/></td></tr>';
             }
         }
     } else {
@@ -180,6 +181,8 @@ function error_cycle(size) {
             error = error_find(perim, diag, height);
             if (error < 0.3) {
                 error_perim += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
+            } else if (error < 0.6) {
+                error_perim += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
             } else {
                 error_perim += "<td>" + error.toFixed(3) + "</td>";
             }
@@ -200,6 +203,8 @@ function error_cycle(size) {
             error = error_find(perim, diag, height);
             if (error < 0.3) {
                 error_diag += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
+            } else if (error < 0.6) {
+                error_diag += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
             } else {
                 error_diag += "<td>" + error.toFixed(3) + "</td>";
             }
@@ -221,6 +226,8 @@ function error_cycle(size) {
             error = error_find(perim, diag, height);
             if (error < 0.3) {
                 error_height += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
+            } else if (error < 0.6) {
+                error_height += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
             } else {
                 error_height += "<td>" + error.toFixed(3) + "</td>";
             }
@@ -303,6 +310,15 @@ function find_coord() {
 }
 function draw() {
     var numpoints = numberofpoints();
+    if (numpoints != 4 && numpoints != 5) {
+        alert("nothing to draw, idiot");
+        return;
+    }
+    var error = errorcheck();
+    if (isNaN(error)) {
+        alert("can't draw if measurements don't make sense");
+        return;
+    }
     if (numpoints == 4) {
         const [a, b, c, d] = find_coord();
         var data = [
@@ -310,20 +326,19 @@ function draw() {
                 x: [a[0], b[0], c[0], d[0]],
                 y: [a[1], b[1], c[1], d[1]],
                 z: [a[2], b[2], c[2], d[2]],
-                mode: "markers",
+                mode: "markers+text",
                 type: "scatter3d",
+                text: ["A", "B", "C", "D"],
                 marker: {
-                    color: "rgb(23, 190, 207)",
+                    color: "rgb(255, 0, 0)",
                     size: 3,
                 },
-                text: ["a", "b", "c", "d"],
-                hoverinfo: "text",
+                hoverinfo: "none",
             },
             {
                 alphahull: -1,
-                opacity: 0.8,
-                color: "rgb(300,100,200)",
-                opacity: 0.4,
+                opacity: 0.3,
+                color: "rgb(255,128,0)",
                 type: "mesh3d",
                 x: [a[0], b[0], c[0], d[0]],
                 y: [a[1], b[1], c[1], d[1]],
@@ -338,20 +353,19 @@ function draw() {
                 x: [a[0], b[0], c[0], d[0], e[0]],
                 y: [a[1], b[1], c[1], d[1], e[1]],
                 z: [a[2], b[2], c[2], d[2], e[2]],
-                mode: "markers",
+                mode: "markers+text",
                 type: "scatter3d",
+                text: ["A", "B", "C", "D", "E"],
                 marker: {
-                    color: "rgb(23, 190, 207)",
+                    color: "rgb(255, 0, 0)",
                     size: 3,
                 },
-                text: ["a", "b", "c", "d", "e"],
-                hoverinfo: "text",
+                hoverinfo: "none",
             },
             {
                 alphahull: -1,
-                opacity: 0.8,
-                color: "rgb(300,100,200)",
-                opacity: 0.4,
+                opacity: 0.3,
+                color: "rgb(255,128,0)",
                 type: "mesh3d",
                 x: [a[0], b[0], c[0], d[0], e[0]],
                 y: [a[1], b[1], c[1], d[1], e[1]],
@@ -372,21 +386,9 @@ function draw() {
             },
             aspectmode: "data",
             camera: {
-                center: {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                },
-                eye: {
-                    x: 2,
-                    y: 2,
-                    z: 2,
-                },
-                up: {
-                    x: 0,
-                    y: 0,
-                    z: 1,
-                },
+                center: { x: 0, y: 0, z: 0 },
+                eye: { x: 2, y: 2, z: 2 },
+                up: { x: 0, y: 0, z: 1 },
             },
             xaxis: {
                 type: "linear",
