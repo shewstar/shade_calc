@@ -277,7 +277,28 @@ function find_coord() {
 
         return [a, b, c, d];
     } else if (numpoints == 5) {
-        return a, b, c, d, e;
+        angle = find_angle(diag_norm[0], perim_norm[0], perim_norm[1]);
+        if (angle < 90) {
+            angle = 90 - angle;
+        } else {
+            angle = angle * -1 + 90;
+        }
+        c = [diag_norm[0] * Math.cos((angle * Math.PI) / 180), diag_norm[0] * Math.sin((angle * Math.PI) / 180), height[2]];
+        angle = find_angle(diag_norm[1], perim_norm[0], diag_norm[2]);
+        if (angle < 90) {
+            angle = 90 - angle;
+        } else {
+            angle = angle * -1 + 90;
+        }
+        d = [diag_norm[1] * Math.cos((angle * Math.PI) / 180), diag_norm[1] * Math.sin((angle * Math.PI) / 180), height[3]];
+        angle = find_angle(perim_norm[4], perim_norm[0], diag_norm[3]);
+        if (angle < 90) {
+            angle = 90 - angle;
+        } else {
+            angle = angle * -1 + 90;
+        }
+        e = [perim_norm[4] * Math.cos((angle * Math.PI) / 180), perim_norm[4] * Math.sin((angle * Math.PI) / 180), height[4]];
+        return [a, b, c, d, e];
     }
 }
 function draw() {
@@ -293,7 +314,7 @@ function draw() {
                 type: "scatter3d",
                 marker: {
                     color: "rgb(23, 190, 207)",
-                    size: 2,
+                    size: 3,
                 },
                 text: ["a", "b", "c", "d"],
                 hoverinfo: "text",
@@ -310,6 +331,34 @@ function draw() {
                 hoverinfo: "none",
             },
         ];
+    } else if (numpoints == 5) {
+        const [a, b, c, d, e] = find_coord();
+        var data = [
+            {
+                x: [a[0], b[0], c[0], d[0], e[0]],
+                y: [a[1], b[1], c[1], d[1], e[1]],
+                z: [a[2], b[2], c[2], d[2], e[2]],
+                mode: "markers",
+                type: "scatter3d",
+                marker: {
+                    color: "rgb(23, 190, 207)",
+                    size: 3,
+                },
+                text: ["a", "b", "c", "d", "e"],
+                hoverinfo: "text",
+            },
+            {
+                alphahull: -1,
+                opacity: 0.8,
+                color: "rgb(300,100,200)",
+                opacity: 0.4,
+                type: "mesh3d",
+                x: [a[0], b[0], c[0], d[0], e[0]],
+                y: [a[1], b[1], c[1], d[1], e[1]],
+                z: [a[2], b[2], c[2], d[2], e[2]],
+                hoverinfo: "none",
+            },
+        ];
     }
 
     var layout = {
@@ -321,6 +370,7 @@ function draw() {
                 y: 1,
                 z: 1,
             },
+            aspectmode: "data",
             camera: {
                 center: {
                     x: 0,
@@ -328,9 +378,9 @@ function draw() {
                     z: 0,
                 },
                 eye: {
-                    x: 1.25,
-                    y: 1.25,
-                    z: 1.25,
+                    x: 2,
+                    y: 2,
+                    z: 2,
                 },
                 up: {
                     x: 0,
@@ -352,7 +402,7 @@ function draw() {
             },
         },
         title: "rough shade sail model",
-        width: 800,
+        width: 1000,
     };
 
     Plotly.newPlot("drawing", data, layout);
