@@ -1,34 +1,40 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
-var test = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
+var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
+var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+function example5() {
+    test5 = [3200, 3620, 4850, 6920, 3810, 5650, 7440, 6000, 5620, 7750, 2500, 4400, 2500, 2800, 2500];
+    document.getElementById("numpoints").value = 5;
+    measurements(5);
+}
 function measurements(numpoints) {
     var text = '<table border="1" cellpadding="6" align="center"><tr><th>Perimeters</th></tr>';
     if (numpoints == 4) {
         for (i = 0; i < fourpoint.length + 2; i++) {
             if (i < 4) {
-                text += "<tr><td>" + fourpoint[i] + " " + '<input type="number" value="' + test[i] + '" id="' + fourpoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i] + " " + '<input type="number" value="' + test4[i] + '" id="' + fourpoint[i] + '" size="6"/></td></tr>';
             } else if (i == 4) {
                 text += "<tr><th>Diagonals</th></tr>";
             } else if (i < 7) {
-                text += "<tr><td>" + fourpoint[i - 1] + " " + '<input type="number" value="' + test[i - 1] + '" id="' + fourpoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 1] + " " + '<input type="number" value="' + test4[i - 1] + '" id="' + fourpoint[i - 1] + '" size="6"/></td></tr>';
             } else if (i == 7) {
                 text += "<tr><th>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fourpoint[i - 2] + " " + '<input type="number" value="' + test[i - 2] + '" id="' + fourpoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 2] + " " + '<input type="number" value="' + test4[i - 2] + '" id="' + fourpoint[i - 2] + '" size="6"/></td></tr>';
             }
         }
     } else if (numpoints == 5) {
         for (i = 0; i < fivepoint.length + 2; i++) {
             if (i < 5) {
-                text += "<tr><td>" + fivepoint[i] + " " + '<input type="number" id="' + fivepoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i] + " " + '<input type="number" value="' + test5[i] + '" id="' + fivepoint[i] + '" size="6"/></td></tr>';
             } else if (i == 5) {
                 text += "<tr><th>Diagonals</th></tr>";
             } else if (i < 11) {
-                text += "<tr><td>" + fivepoint[i - 1] + " " + '<input type="number" id="' + fivepoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 1] + " " + '<input type="number" value="' + test5[i - 1] + '" id="' + fivepoint[i - 1] + '" size="6"/></td></tr>';
             } else if (i == 11) {
                 text += "<tr><th>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fivepoint[i - 2] + " " + '<input type="number" id="' + fivepoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 2] + " " + '<input type="number" value="' + test5[i - 2] + '" id="' + fivepoint[i - 2] + '" size="6"/></td></tr>';
             }
         }
     } else {
@@ -331,7 +337,7 @@ function draw() {
             },
             {
                 alphahull: -1,
-                opacity: 0.3,
+                opacity: 0.4,
                 color: "rgb(255,128,0)",
                 type: "mesh3d",
                 x: [a[0], b[0], c[0], d[0]],
@@ -358,7 +364,7 @@ function draw() {
             },
             {
                 alphahull: -1,
-                opacity: 0.3,
+                opacity: 0.4,
                 color: "rgb(255,128,0)",
                 type: "mesh3d",
                 x: [a[0], b[0], c[0], d[0], e[0]],
