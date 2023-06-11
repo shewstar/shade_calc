@@ -7,6 +7,7 @@
         integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
         <script src='https://cdn.plot.ly/plotly-2.20.0.min.js'></script>
 	    <script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js'></script>
+        
 </head>
 <style>
     .center {
@@ -29,7 +30,7 @@
             <tr>
                 <td align="center" colspan="12">
                     Number of points <input type="number" id="numpoints" size='1' /><input type="button" value="Generate"
-                        onclick="measurements(parseInt(document.getElementById('numpoints').value))" />
+                        onclick="measurements(parseInt(document.getElementById('numpoints').value));" />
                 </td>
             </tr>
         </table>
@@ -65,7 +66,7 @@
         
         </table>
         <div id="drawing" align="center"></div>
-        <script src='shadecode.js'></script>
+        <script src='./shadecode.js'></script>
 </body>
 
 </html>

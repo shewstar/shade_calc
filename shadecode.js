@@ -1,8 +1,6 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
-
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
 var test = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
-var J = 0;
 function measurements(numpoints) {
     var text = '<table border="1" cellpadding="6" align="center"><tr><th>Perimeters</th></tr>';
     if (numpoints == 4) {
@@ -42,11 +40,9 @@ function measurements(numpoints) {
     var showRecordId = document.getElementById("measurements");
     showRecordId.innerHTML = text;
 }
-
 function numberofpoints() {
     return parseInt(document.getElementById("numpoints").value);
 }
-
 function array_meas() {
     numpoints = numberofpoints();
     const perim = [];
@@ -75,7 +71,6 @@ function array_meas() {
     }
     return [perim, diag, height];
 }
-
 function normalised(perim, diag, height) {
     const perim_norm = [];
     const diag_norm = [];
@@ -109,7 +104,6 @@ function errorcheck() {
     var error = error_find(perim, diag, height);
     return error.toFixed(3);
 }
-
 function find_angle(a, b, c) {
     try {
         var x = Math.acos((a ** 2 + b ** 2 - c ** 2) / (2 * b * a));
