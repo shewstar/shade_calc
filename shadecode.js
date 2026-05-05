@@ -11,39 +11,49 @@ let autoErrorUpdateEnabled = false;
 let autoErrorPrimed = false;
 var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+// Undo support
+let lastUndo = null;
+// Change history
+let lastSnapshot = null;
+let changeHistory = [];
+// Track current number of points (no longer read from DOM input)
+let currentNumpoints = 4;
+
 function example5() {
     test5 = [3200, 3620, 4850, 6920, 3810, 5650, 7440, 6000, 5620, 7750, 2500, 4400, 2500, 2800, 2500];
-    document.getElementById("numpoints").value = 5;
     measurements(5);
 }
 function measurements(numpoints) {
-    var text = '<table border="1" cellpadding="6" align="center"><tr><th>Perimeters</th></tr>';
+    currentNumpoints = numpoints;
+    var text = '<table border="1" cellpadding="6" align="center">';
     if (numpoints == 4) {
+        text += "<tr><th colspan='2'>Perimeters</th></tr>";
         for (i = 0; i < fourpoint.length + 2; i++) {
             if (i < 4) {
-                text += "<tr><td>" + fourpoint[i] + " " + '<input type="number" value="' + test4[i] + '" id="' + fourpoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i] + "</td><td>" + '<input type="number" value="' + test4[i] + '" id="' + fourpoint[i] + '" size="6"/>' + "</td></tr>";
             } else if (i == 4) {
-                text += "<tr><th>Diagonals</th></tr>";
+                text += "<tr><th colspan='2'>Diagonals</th></tr>";
             } else if (i < 7) {
-                text += "<tr><td>" + fourpoint[i - 1] + " " + '<input type="number" value="' + test4[i - 1] + '" id="' + fourpoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 1] + "</td><td>" + '<input type="number" value="' + test4[i - 1] + '" id="' + fourpoint[i - 1] + '" size="6"/>' + "</td></tr>";
             } else if (i == 7) {
-                text += "<tr><th>Heights</th></tr>";
+                text += "<tr><th colspan='2'>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fourpoint[i - 2] + " " + '<input type="number" value="' + test4[i - 2] + '" id="' + fourpoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fourpoint[i - 2] + "</td><td>" + '<input type="number" value="' + test4[i - 2] + '" id="' + fourpoint[i - 2] + '" size="6"/>' + "</td></tr>";
             }
         }
     } else if (numpoints == 5) {
+        text += "<tr><th colspan='2'>Perimeters</th></tr>";
         for (i = 0; i < fivepoint.length + 2; i++) {
             if (i < 5) {
-                text += "<tr><td>" + fivepoint[i] + " " + '<input type="number" value="' + test5[i] + '" id="' + fivepoint[i] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i] + "</td><td>" + '<input type="number" value="' + test5[i] + '" id="' + fivepoint[i] + '" size="6"/>' + "</td></tr>";
             } else if (i == 5) {
-                text += "<tr><th>Diagonals</th></tr>";
+                text += "<tr><th colspan='2'>Diagonals</th></tr>";
             } else if (i < 11) {
-                text += "<tr><td>" + fivepoint[i - 1] + " " + '<input type="number" value="' + test5[i - 1] + '" id="' + fivepoint[i - 1] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 1] + "</td><td>" + '<input type="number" value="' + test5[i - 1] + '" id="' + fivepoint[i - 1] + '" size="6"/>' + "</td></tr>";
             } else if (i == 11) {
-                text += "<tr><th>Heights</th></tr>";
+                text += "<tr><th colspan='2'>Heights</th></tr>";
             } else {
-                text += "<tr><td>" + fivepoint[i - 2] + " " + '<input type="number" value="' + test5[i - 2] + '" id="' + fivepoint[i - 2] + '" size="6"/></td></tr>';
+                text += "<tr><td>" + fivepoint[i - 2] + "</td><td>" + '<input type="number" value="' + test5[i - 2] + '" id="' + fivepoint[i - 2] + '" size="6"/>' + "</td></tr>";
             }
         }
     } else {
@@ -57,7 +67,7 @@ function measurements(numpoints) {
     wire_auto_error_inputs(numpoints);
 }
 function numberofpoints() {
-    return parseInt(document.getElementById("numpoints").value);
+    return currentNumpoints;
 }
 function wire_auto_error_inputs(numpoints) {
     const ids = numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : [];
@@ -219,7 +229,6 @@ function load_measurements() {
         alert("Saved measurements do not match required fields");
         return;
     }
-    document.getElementById("numpoints").value = payload.numpoints;
     measurements(payload.numpoints);
     write_measurement_values(ids, payload.values);
     if (document.getElementById("saveName")) {
@@ -662,6 +671,10 @@ function render_recommendations(currentError) {
             text += '<td><input type="button" value="Apply" onclick="apply_recommendation(' + i + ');" /></td>';
             text += "</tr>";
         }
+        // Show Undo button if there's something to undo
+        if (lastUndo) {
+            text += '<tr><td colspan="6"><input class="undo-btn" type="button" value="↩ Undo last change" onclick="undo_recommendation();" /></td></tr>';
+        }
     }
     text += "</table>";
     recommendationsDiv.innerHTML = text;
@@ -682,7 +695,26 @@ function apply_recommendation(index) {
         alert("Measurement value is not a valid number");
         return;
     }
+    // Save undo info before changing
+    lastUndo = {
+        id: recommendation.label,
+        previousValue: currentValue,
+        newValue: currentValue + recommendation.delta
+    };
     input.value = currentValue + recommendation.delta;
+    disp_error();
+}
+function undo_recommendation() {
+    if (!lastUndo) {
+        return;
+    }
+    const input = document.getElementById(lastUndo.id);
+    if (!input) {
+        lastUndo = null;
+        return;
+    }
+    input.value = lastUndo.previousValue;
+    lastUndo = null;
     disp_error();
 }
 function normalised(perim, diag, height) {
@@ -932,6 +964,19 @@ function error_find(perim, diag, height) {
     error = (Math.abs(total_sum - (numpoints - 2) * 180) / ((numpoints - 2) * 180)) * 100;
     return error;
 }
+function make_sweep_cell_html(error, label, delta) {
+    var deltaText = (delta >= 0 ? '+' : '') + delta + ' mm';
+    var clickAttr = ' class="sweep-clickable" onclick="apply_sweep_adjustment(\'' + label + '\',' + delta + ')" title="Click to adjust by ' + deltaText + '"';
+    var errorText = error.toFixed(3);
+    if (error < 0.3) {
+        return '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff"><span' + clickAttr + '>' + errorText + '</span></td></tr></table></td>';
+    } else if (error < 0.6) {
+        return '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff"><span' + clickAttr + '>' + errorText + '</span></td></tr></table></td>';
+    } else {
+        return '<td><span' + clickAttr + '>' + errorText + '</span></td>';
+    }
+}
+
 function error_cycle(size) {
     var numpoints = numberofpoints();
     var error = 0;
@@ -946,24 +991,15 @@ function error_cycle(size) {
     var i = 0;
     for (i = 0; i < perim.length; i++) {
         temp = perim[i];
-        if (numpoints == 4) {
-            error_perim += "<tr><td>" + fourpoint[i] + "</td>";
-        } else if (numpoints == 5) {
-            error_perim += "<tr><td>" + fivepoint[i] + "</td>";
-        }
+        var label = numpoints == 4 ? fourpoint[i] : fivepoint[i];
+        error_perim += "<tr><td>" + label + "</td>";
         for (j = -5; j < 6; j++) {
             if (i == 0) {
                 error_head += "<th>" + (j * size).toFixed(2) + "</th>";
             }
             perim[i] += j * size;
             error = error_find(perim, diag, height);
-            if (error < 0.3) {
-                error_perim += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else if (error < 0.6) {
-                error_perim += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else {
-                error_perim += "<td>" + error.toFixed(3) + "</td>";
-            }
+            error_perim += make_sweep_cell_html(error, label, j * size);
             perim[i] = temp;
         }
         error_perim += "</tr>";
@@ -971,44 +1007,25 @@ function error_cycle(size) {
     var i = 0;
     for (i = 0; i < diag.length; i++) {
         temp = diag[i];
-        if (numpoints == 4) {
-            error_diag += "<tr><td>" + fourpoint[i + numpoints] + "</td>";
-        } else if (numpoints == 5) {
-            error_diag += "<tr><td>" + fivepoint[i + numpoints] + "</td>";
-        }
+        var label = numpoints == 4 ? fourpoint[i + numpoints] : fivepoint[i + numpoints];
+        error_diag += "<tr><td>" + label + "</td>";
         for (j = -5; j < 6; j++) {
             diag[i] += j * size;
             error = error_find(perim, diag, height);
-            if (error < 0.3) {
-                error_diag += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else if (error < 0.6) {
-                error_diag += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else {
-                error_diag += "<td>" + error.toFixed(3) + "</td>";
-            }
+            error_diag += make_sweep_cell_html(error, label, j * size);
             diag[i] = temp;
         }
-
         error_diag += "</tr>";
     }
     var i = 0;
     for (i = 0; i < height.length; i++) {
         temp = height[i];
-        if (numpoints == 4) {
-            error_height += "<tr><td>" + fourpoint[i + numpoints + 2] + "</td>";
-        } else if (numpoints == 5) {
-            error_height += "<tr><td>" + fivepoint[i + numpoints + 5] + "</td>";
-        }
+        var label = numpoints == 4 ? fourpoint[i + numpoints + 2] : fivepoint[i + numpoints + 5];
+        error_height += "<tr><td>" + label + "</td>";
         for (j = -5; j < 6; j++) {
             height[i] += j * size;
             error = error_find(perim, diag, height);
-            if (error < 0.3) {
-                error_height += '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else if (error < 0.6) {
-                error_height += '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff">' + error.toFixed(3) + "</td></tr></table></td>";
-            } else {
-                error_height += "<td>" + error.toFixed(3) + "</td>";
-            }
+            error_height += make_sweep_cell_html(error, label, j * size);
             height[i] = temp;
         }
         error_height += "</tr>";
@@ -1023,12 +1040,130 @@ function error_sweep(size) {
     var showRecordId = document.getElementById("errorcheck");
     showRecordId.innerHTML = text;
 }
+
+// ============================================================
+// Clickable sweep table support
+// ============================================================
+function apply_sweep_adjustment(label, delta) {
+    const input = document.getElementById(label);
+    if (!input) {
+        return;
+    }
+    const currentValue = parseFloat(input.value);
+    if (isNaN(currentValue)) {
+        return;
+    }
+    input.value = currentValue + delta;
+    // Recalculate error and recommendations
+    disp_error();
+    // Re-render the sweep table if a size value is set
+    const sizeInput = document.getElementById("size");
+    if (sizeInput) {
+        const sizeValue = parseFloat(sizeInput.value);
+        if (!isNaN(sizeValue)) {
+            error_sweep(sizeValue);
+        }
+    }
+}
+
+// ============================================================
+// NEW FEATURE: Snapshot current measurements for change history
+// ============================================================
+function snapshot_measurements() {
+
+    const numpoints = numberofpoints();
+    if (numpoints !== 4 && numpoints !== 5) {
+        return null;
+    }
+    const ids = numpoints === 4 ? fourpoint : fivepoint;
+    const snap = {};
+    for (let i = 0; i < ids.length; i++) {
+        const input = document.getElementById(ids[i]);
+        if (input) {
+            snap[ids[i]] = input.value;
+        }
+    }
+    return snap;
+}
+
+// ============================================================
+// NEW FEATURE: Clear all measurement inputs
+// ============================================================
+function clear_all() {
+    const numpoints = numberofpoints();
+    if (numpoints !== 4 && numpoints !== 5) {
+        // Just try clearing all known IDs
+        const allIds = fourpoint.concat(fivepoint);
+        for (let i = 0; i < allIds.length; i++) {
+            const input = document.getElementById(allIds[i]);
+            if (input) {
+                input.value = "";
+            }
+        }
+        // Reset results
+        document.getElementById("Error").innerHTML = "";
+        document.getElementById("residualFit").innerHTML = "";
+        document.getElementById("recommendations").innerHTML = "";
+        document.getElementById("errorcheck").innerHTML = "";
+        return;
+    }
+    const ids = numpoints === 4 ? fourpoint : fivepoint;
+    for (let i = 0; i < ids.length; i++) {
+        const input = document.getElementById(ids[i]);
+        if (input) {
+            input.value = "";
+        }
+    }
+    // Also clear results
+    document.getElementById("Error").innerHTML = "";
+    document.getElementById("residualFit").innerHTML = "";
+    document.getElementById("recommendations").innerHTML = "";
+    document.getElementById("errorcheck").innerHTML = "";
+}
+
 function disp_error() {
     if (!autoErrorPrimed) {
         autoErrorPrimed = true;
         autoErrorUpdateEnabled = true;
         set_auto_update_ui();
     }
+
+    // --- Change history tracking ---
+    const currentSnapshot = snapshot_measurements();
+    if (lastSnapshot && currentSnapshot) {
+        const changes = [];
+        const ids = Object.keys(currentSnapshot);
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            const oldVal = lastSnapshot[id];
+            const newVal = currentSnapshot[id];
+            if (oldVal !== newVal) {
+                changes.push({
+                    id: id,
+                    from: oldVal,
+                    to: newVal
+                });
+            }
+        }
+        if (changes.length > 0) {
+            // Determine current error for context
+            var currError = "?";
+            try {
+                currError = errorcheck();
+            } catch(e) {}
+            changeHistory.push({
+                changes: changes,
+                error: currError,
+                time: new Date()
+            });
+            // Keep last 20 entries
+            if (changeHistory.length > 20) {
+                changeHistory = changeHistory.slice(-20);
+            }
+        }
+    }
+    lastSnapshot = currentSnapshot;
+
     var error = errorcheck();
     var errorNum = parseFloat(error);
     var text = "";
@@ -1057,7 +1192,59 @@ function disp_error() {
     showRecordId.innerHTML = text;
     render_recommendations(errorNum);
     render_residual_fit(errorNum, nanReasons);
+
+    // Render change history
+    render_change_history();
 }
+
+// ============================================================
+// NEW FEATURE: Render change history log
+// ============================================================
+function render_change_history() {
+    const target = document.getElementById("recommendations");
+    if (!target) {
+        return;
+    }
+
+    // Remove any existing change log from the DOM
+    let existingLog = document.getElementById("changeLog");
+    if (!existingLog) {
+        existingLog = document.createElement("div");
+        existingLog.id = "changeLog";
+        target.parentNode.appendChild(existingLog);
+    }
+
+    if (changeHistory.length === 0) {
+        existingLog.innerHTML = "";
+        return;
+    }
+
+    // Build the full history in reverse (most recent first)
+    let html = '<details>';
+    html += '<summary>📋 Change history (' + changeHistory.length + ' entry' + (changeHistory.length !== 1 ? 's' : '') + ')</summary>';
+
+    // Show entries in reverse order (newest first)
+    for (let h = changeHistory.length - 1; h >= 0; h--) {
+        const entry = changeHistory[h];
+        if (!entry.changes || entry.changes.length === 0) {
+            continue;
+        }
+        html += '<div style="margin-top: 8px; border-top: 1px solid #d9dee5; padding-top: 6px;">';
+        for (let i = 0; i < entry.changes.length; i++) {
+            const c = entry.changes[i];
+            html += "• <b>" + c.id + "</b>: " + c.from + " → " + c.to + "<br/>";
+        }
+        if (entry.error !== "?") {
+            html += "📊 Error: <b>" + entry.error + "%</b>";
+        }
+        html += '</div>';
+    }
+
+    html += '</details>';
+
+    existingLog.innerHTML = html;
+}
+
 function find_coord() {
     var [perim, diag, height] = array_meas();
     var [perim_norm, diag_norm] = normalised(perim, diag, height);
