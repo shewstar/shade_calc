@@ -1,6 +1,7 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
 const STORAGE_KEY = "shadeCalcMeasurementsV1";
+let currentRecommendations = [];
 var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function example5() {
@@ -225,6 +226,157 @@ function array_meas() {
     }
     return [perim, diag, height];
 }
+function get_status_from_error(error) {
+    if (error <= 0.4) {
+        return { label: "PASS", color: "green" };
+    }
+    if (error <= 0.7) {
+        return { label: "MARGINAL", color: "#b59a00" };
+    }
+    return { label: "FAIL", color: "red" };
+}
+function clone_measurement_arrays(perim, diag, height) {
+    return [perim.slice(), diag.slice(), height.slice()];
+}
+function measurement_metadata(numpoints) {
+    if (numpoints === 4) {
+        return [
+            { label: fourpoint[0], group: "perim", index: 0 },
+            { label: fourpoint[1], group: "perim", index: 1 },
+            { label: fourpoint[2], group: "perim", index: 2 },
+            { label: fourpoint[3], group: "perim", index: 3 },
+            { label: fourpoint[4], group: "diag", index: 0 },
+            { label: fourpoint[5], group: "diag", index: 1 },
+            { label: fourpoint[6], group: "height", index: 0 },
+            { label: fourpoint[7], group: "height", index: 1 },
+            { label: fourpoint[8], group: "height", index: 2 },
+            { label: fourpoint[9], group: "height", index: 3 },
+        ];
+    }
+    return [
+        { label: fivepoint[0], group: "perim", index: 0 },
+        { label: fivepoint[1], group: "perim", index: 1 },
+        { label: fivepoint[2], group: "perim", index: 2 },
+        { label: fivepoint[3], group: "perim", index: 3 },
+        { label: fivepoint[4], group: "perim", index: 4 },
+        { label: fivepoint[5], group: "diag", index: 0 },
+        { label: fivepoint[6], group: "diag", index: 1 },
+        { label: fivepoint[7], group: "diag", index: 2 },
+        { label: fivepoint[8], group: "diag", index: 3 },
+        { label: fivepoint[9], group: "diag", index: 4 },
+        { label: fivepoint[10], group: "height", index: 0 },
+        { label: fivepoint[11], group: "height", index: 1 },
+        { label: fivepoint[12], group: "height", index: 2 },
+        { label: fivepoint[13], group: "height", index: 3 },
+        { label: fivepoint[14], group: "height", index: 4 },
+    ];
+}
+function apply_delta_to_arrays(perim, diag, height, measure, delta) {
+    if (measure.group === "perim") {
+        perim[measure.index] += delta;
+    } else if (measure.group === "diag") {
+        diag[measure.index] += delta;
+    } else {
+        height[measure.index] += delta;
+    }
+}
+function recommend_adjustments() {
+    const numpoints = numberofpoints();
+    if (numpoints !== 4 && numpoints !== 5) {
+        return [];
+    }
+    const [basePerim, baseDiag, baseHeight] = array_meas();
+    const baseError = error_find(basePerim.slice(), baseDiag.slice(), baseHeight.slice());
+    if (isNaN(baseError)) {
+        return [];
+    }
+    const measures = measurement_metadata(numpoints);
+    const step = 5;
+    const maxDelta = 50;
+    const allCandidates = [];
+    for (let m = 0; m < measures.length; m++) {
+        const measure = measures[m];
+        let bestForMeasure = null;
+        for (let delta = -maxDelta; delta <= maxDelta; delta += step) {
+            if (delta === 0) {
+                continue;
+            }
+            const [perim, diag, height] = clone_measurement_arrays(basePerim, baseDiag, baseHeight);
+            apply_delta_to_arrays(perim, diag, height, measure, delta);
+            const newError = error_find(perim, diag, height);
+            if (isNaN(newError)) {
+                continue;
+            }
+            const improvement = baseError - newError;
+            if (improvement <= 0) {
+                continue;
+            }
+            if (!bestForMeasure || improvement > bestForMeasure.improvement) {
+                bestForMeasure = {
+                    label: measure.label,
+                    delta: delta,
+                    newError: newError,
+                    improvement: improvement,
+                };
+            }
+        }
+        if (bestForMeasure) {
+            allCandidates.push(bestForMeasure);
+        }
+    }
+    allCandidates.sort(function (a, b) {
+        return b.improvement - a.improvement;
+    });
+    return allCandidates.slice(0, 3);
+}
+function render_recommendations(currentError) {
+    const recommendationsDiv = document.getElementById("recommendations");
+    if (!recommendationsDiv) {
+        return;
+    }
+    const status = get_status_from_error(currentError);
+    const recommendations = recommend_adjustments();
+    currentRecommendations = recommendations;
+    let text = '<table border="1" cellpadding="6" align="center">';
+    text += '<tr><th colspan="4">Recommendations</th></tr>';
+    text += '<tr><td colspan="4"><b style="color:' + status.color + ';">Status: ' + status.label + "</b> | Error: " + currentError.toFixed(3) + "%</td></tr>";
+    if (recommendations.length === 0) {
+        text += '<tr><td colspan="4">No improvement suggestions available for +/- 50 mm search range.</td></tr>';
+    } else {
+        text += "<tr><th>Measurement</th><th>Adjust</th><th>Estimated Error</th><th>Action</th></tr>";
+        for (let i = 0; i < recommendations.length; i++) {
+            const r = recommendations[i];
+            const deltaText = (r.delta > 0 ? "+" : "") + r.delta + " mm";
+            text += "<tr>";
+            text += "<td>" + r.label + "</td>";
+            text += "<td>" + deltaText + "</td>";
+            text += "<td>" + r.newError.toFixed(3) + "%</td>";
+            text += '<td><input type="button" value="Apply" onclick="apply_recommendation(' + i + ');" /></td>';
+            text += "</tr>";
+        }
+    }
+    text += "</table>";
+    recommendationsDiv.innerHTML = text;
+}
+function apply_recommendation(index) {
+    const recommendation = currentRecommendations[index];
+    if (!recommendation) {
+        alert("Recommendation is not available");
+        return;
+    }
+    const input = document.getElementById(recommendation.label);
+    if (!input) {
+        alert("Measurement input was not found");
+        return;
+    }
+    const currentValue = parseFloat(input.value);
+    if (isNaN(currentValue)) {
+        alert("Measurement value is not a valid number");
+        return;
+    }
+    input.value = currentValue + recommendation.delta;
+    disp_error();
+}
 function normalised(perim, diag, height) {
     const perim_norm = [];
     const diag_norm = [];
@@ -395,8 +547,9 @@ function error_sweep(size) {
 }
 function disp_error() {
     var error = errorcheck();
+    var errorNum = parseFloat(error);
     var text = "";
-    if (error > 0.4) {
+    if (errorNum > 0.4) {
         text += '<table border="5" bordercolor="red"cellpadding="3" align="center"><tr><th>Error</th></tr>';
     } else {
         text += '<table border="5" bordercolor="green"cellpadding="3" align="center"><tr><th>Error</th></tr>';
@@ -405,6 +558,9 @@ function disp_error() {
     text += "</table>";
     var showRecordId = document.getElementById("Error");
     showRecordId.innerHTML = text;
+    if (!isNaN(errorNum)) {
+        render_recommendations(errorNum);
+    }
 }
 function find_coord() {
     var [perim, diag, height] = array_meas();
