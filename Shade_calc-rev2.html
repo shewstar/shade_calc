@@ -10,20 +10,72 @@
         
 </head>
 <style>
+    body {
+        margin: 0;
+        background: #f3f5f8;
+        font-family: Arial, sans-serif;
+        color: #1f2937;
+    }
+    .app {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 10px;
+    }
+    .app-header {
+        text-align: center;
+        margin-bottom: 10px;
+    }
     .center {
         display: block;
-        margin-left: auto;
-        margin-right: auto;
+        margin: 0 auto 8px auto;
     }
-    input[type='number']{
-        width: 100px;
+    .card {
+        background: #ffffff;
+        border: 1px solid #d9dee5;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
     }
-    .eli5-box {
-        max-width: 1000px;
-        margin: 24px auto;
-        border: 1px solid #cccccc;
-        padding: 14px;
-        background: #fafafa;
+    .row-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    .row-wrap > * {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    input[type='number'],
+    input[type='text'],
+    select,
+    input[type='button'] {
+        font-size: 16px;
+        padding: 6px 8px;
+    }
+    input[type='number'],
+    input[type='text'],
+    select {
+        width: 100%;
+        max-width: 220px;
+    }
+    .action-btn {
+        width: 100%;
+    }
+    .center-actions {
+        justify-content: center;
+    }
+    #drawing {
+        overflow-x: auto;
+    }
+    #Error,
+    #residualFit,
+    #recommendations {
+        text-align: center;
+    }
+    #recommendations input[type='button'] {
+        display: inline-block;
+        margin: 0 auto;
     }
     .eli5-diagram {
         font-family: Consolas, "Courier New", monospace;
@@ -31,80 +83,99 @@
         background: #ffffff;
         border: 1px solid #dddddd;
         padding: 8px;
+        overflow-x: auto;
+    }
+    details summary {
+        cursor: pointer;
+        font-weight: bold;
+    }
+    @media (min-width: 768px) {
+        .row-wrap > * {
+            flex: 0 1 auto;
+        }
+        .action-btn {
+            width: auto;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .results-grid #recommendations {
+            grid-column: 1 / -1;
+        }
     }
     </style>
 
 <body>
-    <image src="logo-150x150.png" class="center" alt="ASS logo"></image>
-    <h1 align="center">ASS Shade Calculator</h1>
-    <table cellpadding="5" cellspacing="0" align="center">
-        <tr><td></td>
-            <td>
-        <table cellpadding="5" cellspacing="0" align="center">
-            <tr>
-                <td align="center" colspan="12">
-                    Number of points <input type="number" id="numpoints" size='1' /><input type="button" value="Generate"
-                        onclick="measurements(parseInt(document.getElementById('numpoints').value));" />
-                </td>
-            </tr>
-        </table>
-        
+    <div class="app">
+        <div class="app-header card">
+            <img src="logo-150x150.png" class="center" alt="ASS logo" />
+            <h1>ASS Shade Calculator</h1>
+        </div>
+
+        <div class="card">
+            <div class="row-wrap">
+                <label for="numpoints">Number of points</label>
+                <input type="number" id="numpoints" size='1' />
+                <input class="action-btn" type="button" value="Generate"
+                    onclick="measurements(parseInt(document.getElementById('numpoints').value));" />
+                <input class="action-btn" type="button" value="Example 5 pointer" onclick="example5();" />
+            </div>
+            <div class="row-wrap" style="margin-top: 8px;">
+                <div>
+                    Save name <input type="text" id="saveName" size="14" placeholder="e.g. Backyard v2" />
+                </div>
+                <input class="action-btn" type="button" value="Save Measurements" onclick="save_measurements();" />
+                <input class="action-btn" type="button" value="Load Measurements" onclick="load_measurements();" />
+                <div>Saved sets <select id="savedSets"></select></div>
+            </div>
+        </div>
+
+        <div class="card">
         <div id='measurements'></div>
-        <table align="center"cellpadding="5" cellspacing="0">
-            <tr>
-                <td align="center">
-                    <input type="button" value="Calculate Error" onclick="disp_error();" />
-                </td>
-                <td align="center">
+        </div>
+
+        <div class="card">
+            <div class="row-wrap center-actions">
+                <input class="action-btn" type="button" value="Calculate Error" onclick="disp_error();" />
+                <div>
                     <label for="autoUpdateToggle">Auto update:</label>
                     <input type="checkbox" id="autoUpdateToggle" disabled />
                     <span id="autoUpdateStatus">OFF (press Calculate Error first)</span>
-                </td>
-            </tr>
-        </table>
-        <table align="center" cellpadding="5" cellspacing="0">
-            <tr>
-                <td align="center">
-                    Save name <input type="text" id="saveName" size="14" placeholder="e.g. Backyard v2" />
-                </td>
-                <td align="center">
-                    <input type="button" value="Save Measurements" onclick="save_measurements();" />
-                </td>
-                <td align="center">
-                    <input type="button" value="Load Measurements" onclick="load_measurements();" />
-                </td>
-                <td align="center">
-                    Saved sets <select id="savedSets"></select>
-                </td>
-            </tr>
-        </table>
-        <div id='Error'></div>
-        <div id='residualFit'></div>
-        <div id='recommendations'></div>
-        <table align="center" cellpadding="5" cellspacing="0">
-            <tr>
-                <td align="center">
-                    Adjust size (mm) <input type="number" id="size" size='2' /><input type="button" value="Generate"
-                        onclick="error_sweep(parseFloat(document.getElementById('size').value));" />
-                </td>
-            </tr>
-        </table>
-        </form>
-        <div id='errorcheck'></div>
-        <table align="center">
-            <tr>
-                <td align="center">
-                    <input style="background-color: orange" type="button" value="DRAW" onclick="draw();" />
-                </td>
-            </tr>
-        </table>
-        </td><td><input type="button" value="Example 5 pointer" onclick="example5();" /></td>
-    </tr>
-        
-        </table>
-        <div id="drawing" align="center"></div>
-        <div class="eli5-box">
-            <h3>ELI5: How the two error checks work</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin: 0 0 10px 0; text-align: center;">Error Sweep Table</h3>
+            <div class="row-wrap center-actions" style="margin-top: 4px; margin-bottom: 10px;">
+                <div>
+                    Adjust size (mm) <input type="number" id="size" size='2' />
+                </div>
+            </div>
+            <div id='errorcheck'></div>
+        </div>
+
+        <div class="card results-grid">
+            <div id='Error'></div>
+            <div id='residualFit'></div>
+            <div id='recommendations'></div>
+        </div>
+
+        <div class="card">
+            <div id="drawing" align="center"></div>
+        </div>
+
+        <div class="card">
+            <div class="row-wrap center-actions">
+                <input class="action-btn" style="background-color: orange" type="button" value="DRAW" onclick="draw();" />
+            </div>
+        </div>
+
+        <div class="card">
+            <details>
+            <summary>ELI5: How the two error checks work</summary>
             <p><b>1) Percent Error (angle closure check)</b></p>
             <p>
                 Think of joining sticks to make a loop. If the shape is perfect, all inside corner angles should add up to a known total.
@@ -141,8 +212,11 @@ RMS mismatch = "typical" residual size across all lines (in mm)</div>
                 <b>Why they can disagree:</b> angle percent is strict about corner-angle math (best for convex layouts),
                 while residual fit is strict about distance consistency (works better with internal/reflex corners too).
             </p>
+            </details>
         </div>
+
         <script src='./shadecode.js'></script>
+    </div>
 </body>
 
 </html>

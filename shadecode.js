@@ -233,6 +233,7 @@ window.addEventListener("DOMContentLoaded", function () {
     const savedSetsSelect = document.getElementById("savedSets");
     const saveNameInput = document.getElementById("saveName");
     const autoUpdateToggle = document.getElementById("autoUpdateToggle");
+    const sizeInput = document.getElementById("size");
     set_auto_update_ui();
     if (savedSetsSelect && saveNameInput) {
         savedSetsSelect.addEventListener("change", function () {
@@ -247,6 +248,16 @@ window.addEventListener("DOMContentLoaded", function () {
             }
             autoErrorUpdateEnabled = autoUpdateToggle.checked;
             set_auto_update_ui();
+        });
+    }
+    if (sizeInput) {
+        sizeInput.addEventListener("input", function () {
+            const sizeValue = parseFloat(sizeInput.value);
+            if (!isNaN(sizeValue)) {
+                error_sweep(sizeValue);
+            } else {
+                document.getElementById("errorcheck").innerHTML = "";
+            }
         });
     }
 });
