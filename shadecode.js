@@ -1,6 +1,10 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
 const STORAGE_KEY = "shadeCalcMeasurementsV1";
+const ERROR_PASS_THRESHOLD = 0.4;
+const RMS_PASS_THRESHOLD = 25;
+const RECOMMENDER_ERROR_WEIGHT = 0.5;
+const RECOMMENDER_RMS_WEIGHT = 0.5;
 let currentRecommendations = [];
 var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -226,6 +230,191 @@ function array_meas() {
     }
     return [perim, diag, height];
 }
+function build_distance_constraints(numpoints, perim, diag) {
+    if (numpoints === 4) {
+        return [
+            { i: 0, j: 1, d: perim[0], label: "A-B" },
+            { i: 1, j: 2, d: perim[1], label: "B-C" },
+            { i: 2, j: 3, d: perim[2], label: "C-D" },
+            { i: 3, j: 0, d: perim[3], label: "D-A" },
+            { i: 0, j: 2, d: diag[0], label: "A-C" },
+            { i: 1, j: 3, d: diag[1], label: "B-D" },
+        ];
+    }
+    return [
+        { i: 0, j: 1, d: perim[0], label: "A-B" },
+        { i: 1, j: 2, d: perim[1], label: "B-C" },
+        { i: 2, j: 3, d: perim[2], label: "C-D" },
+        { i: 3, j: 4, d: perim[3], label: "D-E" },
+        { i: 4, j: 0, d: perim[4], label: "E-A" },
+        { i: 0, j: 2, d: diag[0], label: "A-C" },
+        { i: 0, j: 3, d: diag[1], label: "A-D" },
+        { i: 1, j: 3, d: diag[2], label: "B-D" },
+        { i: 1, j: 4, d: diag[3], label: "B-E" },
+        { i: 2, j: 4, d: diag[4], label: "C-E" },
+    ];
+}
+function make_initial_xy(numpoints, abHorizontal, perim) {
+    const vars = [];
+    const avgRadius = perim.reduce(function (acc, v) {
+        return acc + Math.abs(v);
+    }, 0) / perim.length;
+    for (let p = 2; p < numpoints; p++) {
+        const angle = (2 * Math.PI * p) / numpoints;
+        const xGuess = abHorizontal * 0.5 + avgRadius * Math.cos(angle);
+        const yGuess = avgRadius * Math.sin(angle);
+        vars.push(xGuess, yGuess);
+    }
+    return vars;
+}
+function get_xy_for_point(pointIdx, vars, abHorizontal) {
+    if (pointIdx === 0) {
+        return [0, 0];
+    }
+    if (pointIdx === 1) {
+        return [abHorizontal, 0];
+    }
+    const offset = 2 * (pointIdx - 2);
+    return [vars[offset], vars[offset + 1]];
+}
+function residual_cost(numpoints, vars, abHorizontal, heights, constraints) {
+    let sumSquares = 0;
+    for (let k = 0; k < constraints.length; k++) {
+        const c = constraints[k];
+        const p1 = get_xy_for_point(c.i, vars, abHorizontal);
+        const p2 = get_xy_for_point(c.j, vars, abHorizontal);
+        const dz = heights[c.i] - heights[c.j];
+        const modeled = Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2);
+        const residual = modeled - c.d;
+        sumSquares += residual ** 2;
+    }
+    return sumSquares;
+}
+function optimize_distance_fit(numpoints, perim, diag, height, maxIterations) {
+    const abSq = perim[0] ** 2 - (height[0] - height[1]) ** 2;
+    if (abSq <= 0) {
+        return null;
+    }
+    const abHorizontal = Math.sqrt(abSq);
+    const constraints = build_distance_constraints(numpoints, perim, diag);
+    let vars = make_initial_xy(numpoints, abHorizontal, perim);
+    let lr = 0.05;
+    let bestCost = residual_cost(numpoints, vars, abHorizontal, height, constraints);
+    const eps = 0.001;
+    const iterations = maxIterations || 1200;
+    for (let iter = 0; iter < iterations; iter++) {
+        const grad = new Array(vars.length).fill(0);
+        for (let i = 0; i < vars.length; i++) {
+            const oldVal = vars[i];
+            vars[i] = oldVal + eps;
+            const c1 = residual_cost(numpoints, vars, abHorizontal, height, constraints);
+            vars[i] = oldVal - eps;
+            const c2 = residual_cost(numpoints, vars, abHorizontal, height, constraints);
+            vars[i] = oldVal;
+            grad[i] = (c1 - c2) / (2 * eps);
+        }
+        const candidate = vars.slice();
+        for (let i = 0; i < candidate.length; i++) {
+            candidate[i] -= lr * grad[i];
+        }
+        const candidateCost = residual_cost(numpoints, candidate, abHorizontal, height, constraints);
+        if (candidateCost < bestCost) {
+            vars = candidate;
+            bestCost = candidateCost;
+            lr *= 1.05;
+        } else {
+            lr *= 0.5;
+            if (lr < 0.000001) {
+                break;
+            }
+        }
+    }
+    return { vars: vars, abHorizontal: abHorizontal, constraints: constraints, cost: bestCost };
+}
+function compute_residual_fit_from_measurements(numpoints, perim, diag, height, maxIterations) {
+    if (
+        perim.some(function (v) { return isNaN(v); }) ||
+        diag.some(function (v) { return isNaN(v); }) ||
+        height.some(function (v) { return isNaN(v); })
+    ) {
+        return null;
+    }
+    const fit = optimize_distance_fit(numpoints, perim, diag, height, maxIterations);
+    if (!fit) {
+        return null;
+    }
+    const residuals = [];
+    for (let k = 0; k < fit.constraints.length; k++) {
+        const c = fit.constraints[k];
+        const p1 = get_xy_for_point(c.i, fit.vars, fit.abHorizontal);
+        const p2 = get_xy_for_point(c.j, fit.vars, fit.abHorizontal);
+        const dz = height[c.i] - height[c.j];
+        const modeled = Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2);
+        const residual = modeled - c.d;
+        residuals.push({ label: c.label, residual: residual, absResidual: Math.abs(residual) });
+    }
+    const rms = Math.sqrt(
+        residuals.reduce(function (acc, r) {
+            return acc + r.residual ** 2;
+        }, 0) / residuals.length
+    );
+    residuals.sort(function (a, b) {
+        return b.absResidual - a.absResidual;
+    });
+    return { rms: rms, max: residuals[0], worstThree: residuals.slice(0, 3) };
+}
+function compute_residual_fit() {
+    const numpoints = numberofpoints();
+    if (numpoints !== 4 && numpoints !== 5) {
+        return null;
+    }
+    const [perim, diag, height] = array_meas();
+    return compute_residual_fit_from_measurements(numpoints, perim, diag, height, 1200);
+}
+function combined_recommendation_score(angleError, rmsMismatch) {
+    const normalizedAngle = isNaN(angleError) ? null : angleError / ERROR_PASS_THRESHOLD;
+    const normalizedRms = rmsMismatch / RMS_PASS_THRESHOLD;
+    if (normalizedAngle === null) {
+        return normalizedRms;
+    }
+    const totalWeight = RECOMMENDER_ERROR_WEIGHT + RECOMMENDER_RMS_WEIGHT;
+    if (totalWeight <= 0) {
+        return normalizedRms;
+    }
+    return (RECOMMENDER_ERROR_WEIGHT * normalizedAngle + RECOMMENDER_RMS_WEIGHT * normalizedRms) / totalWeight;
+}
+function render_residual_fit() {
+    const target = document.getElementById("residualFit");
+    if (!target) {
+        return;
+    }
+    const result = compute_residual_fit();
+    if (!result) {
+        target.innerHTML = "";
+        return;
+    }
+    let residualStatus = { label: "FAIL", color: "red" };
+    if (result.rms <= 25) {
+        residualStatus = { label: "PASS", color: "green" };
+    } else if (result.rms <= 40) {
+        residualStatus = { label: "MARGINAL", color: "#b59a00" };
+    }
+    let html = '<table border="1" cellpadding="4" align="center"><tr><th>Residual Fit</th></tr>';
+    html +=
+        "<tr><td><b style='color:" +
+        residualStatus.color +
+        ";'>" +
+        residualStatus.label +
+        "</b> | RMS " +
+        result.rms.toFixed(1) +
+        " mm | Max " +
+        result.max.absResidual.toFixed(1) +
+        " mm (" +
+        result.max.label +
+        ")</td></tr>";
+    html += "</table>";
+    target.innerHTML = html;
+}
 function get_status_from_error(error) {
     if (error <= 0.4) {
         return { label: "PASS", color: "green" };
@@ -287,12 +476,15 @@ function recommend_adjustments() {
     }
     const [basePerim, baseDiag, baseHeight] = array_meas();
     const baseError = error_find(basePerim.slice(), baseDiag.slice(), baseHeight.slice());
-    if (isNaN(baseError)) {
+    const baseResidualFit = compute_residual_fit_from_measurements(numpoints, basePerim, baseDiag, baseHeight, 300);
+    if (!baseResidualFit) {
         return [];
     }
+    const baseScore = combined_recommendation_score(baseError, baseResidualFit.rms);
+    const angleErrorInvalid = isNaN(baseError);
     const measures = measurement_metadata(numpoints);
-    const step = 5;
-    const maxDelta = 50;
+    const step = 10;
+    const maxDelta = 40;
     const allCandidates = [];
     for (let m = 0; m < measures.length; m++) {
         const measure = measures[m];
@@ -304,18 +496,23 @@ function recommend_adjustments() {
             const [perim, diag, height] = clone_measurement_arrays(basePerim, baseDiag, baseHeight);
             apply_delta_to_arrays(perim, diag, height, measure, delta);
             const newError = error_find(perim, diag, height);
-            if (isNaN(newError)) {
+            const newResidualFit = compute_residual_fit_from_measurements(numpoints, perim, diag, height, 180);
+            if (!newResidualFit) {
                 continue;
             }
-            const improvement = baseError - newError;
-            if (improvement <= 0) {
-                continue;
-            }
-            if (!bestForMeasure || improvement > bestForMeasure.improvement) {
+            const newScore = combined_recommendation_score(newError, newResidualFit.rms);
+            const improvement = baseScore - newScore;
+            const isBetterCandidate =
+                !bestForMeasure ||
+                improvement > bestForMeasure.improvement ||
+                (improvement === bestForMeasure.improvement && newScore < bestForMeasure.newScore);
+            if (isBetterCandidate) {
                 bestForMeasure = {
                     label: measure.label,
                     delta: delta,
                     newError: newError,
+                    newRms: newResidualFit.rms,
+                    newScore: newScore,
                     improvement: improvement,
                 };
             }
@@ -324,33 +521,56 @@ function recommend_adjustments() {
             allCandidates.push(bestForMeasure);
         }
     }
-    allCandidates.sort(function (a, b) {
-        return b.improvement - a.improvement;
-    });
-    return allCandidates.slice(0, 3);
+    const improvedCandidates = allCandidates
+        .filter(function (c) {
+            return c.improvement > 0;
+        })
+        .sort(function (a, b) {
+            return b.improvement - a.improvement;
+        });
+    if (improvedCandidates.length >= 3) {
+        return improvedCandidates.slice(0, 3);
+    }
+    // In NaN angle-error cases, still show best RMS/combo options even if no strict "improvement" was found.
+    if (angleErrorInvalid) {
+        allCandidates.sort(function (a, b) {
+            return a.newScore - b.newScore;
+        });
+        return allCandidates.slice(0, 3);
+    }
+    return improvedCandidates.slice(0, 3);
 }
 function render_recommendations(currentError) {
     const recommendationsDiv = document.getElementById("recommendations");
     if (!recommendationsDiv) {
         return;
     }
-    const status = get_status_from_error(currentError);
+    const status = isNaN(currentError) ? { label: "N/A", color: "#666666" } : get_status_from_error(currentError);
     const recommendations = recommend_adjustments();
     currentRecommendations = recommendations;
     let text = '<table border="1" cellpadding="6" align="center">';
-    text += '<tr><th colspan="4">Recommendations</th></tr>';
-    text += '<tr><td colspan="4"><b style="color:' + status.color + ';">Status: ' + status.label + "</b> | Error: " + currentError.toFixed(3) + "%</td></tr>";
+    text += '<tr><th colspan="6">Recommendations (Combined Score)</th></tr>';
+    text +=
+        '<tr><td colspan="6"><b style="color:' +
+        status.color +
+        ';">Status: ' +
+        status.label +
+        "</b> | Error: " +
+        (isNaN(currentError) ? "N/A" : currentError.toFixed(3) + "%") +
+        "</td></tr>";
     if (recommendations.length === 0) {
-        text += '<tr><td colspan="4">No improvement suggestions available for +/- 50 mm search range.</td></tr>';
+        text += '<tr><td colspan="6">No improvement suggestions available for combined-score search range.</td></tr>';
     } else {
-        text += "<tr><th>Measurement</th><th>Adjust</th><th>Estimated Error</th><th>Action</th></tr>";
+        text += "<tr><th>Measurement</th><th>Adjust</th><th>Est. Error</th><th>Est. RMS</th><th>Combined Score</th><th>Action</th></tr>";
         for (let i = 0; i < recommendations.length; i++) {
             const r = recommendations[i];
             const deltaText = (r.delta > 0 ? "+" : "") + r.delta + " mm";
             text += "<tr>";
             text += "<td>" + r.label + "</td>";
             text += "<td>" + deltaText + "</td>";
-            text += "<td>" + r.newError.toFixed(3) + "%</td>";
+            text += "<td>" + (isNaN(r.newError) ? "N/A" : r.newError.toFixed(3) + "%") + "</td>";
+            text += "<td>" + r.newRms.toFixed(1) + " mm</td>";
+            text += "<td>" + r.newScore.toFixed(3) + "</td>";
             text += '<td><input type="button" value="Apply" onclick="apply_recommendation(' + i + ');" /></td>';
             text += "</tr>";
         }
@@ -404,6 +624,131 @@ function normalised(perim, diag, height) {
     }
     height.pop();
     return [perim_norm, diag_norm];
+}
+function diag_height_pair_info(numpoints, diagIndex) {
+    if (numpoints === 4) {
+        if (diagIndex === 0) {
+            return { h1: "Ah", h2: "Ch" };
+        }
+        return { h1: "Bh", h2: "Dh" };
+    }
+    if (diagIndex === 0) {
+        return { h1: "Ah", h2: "Ch" };
+    }
+    if (diagIndex === 1) {
+        return { h1: "Ah", h2: "Dh" };
+    }
+    if (diagIndex === 2) {
+        return { h1: "Bh", h2: "Dh" };
+    }
+    if (diagIndex === 3) {
+        return { h1: "Bh", h2: "Eh" };
+    }
+    return { h1: "Ch", h2: "Eh" };
+}
+function diagnose_angle_error_nan(perim, diag, height, numpoints) {
+    const reasons = [];
+    const labels = numpoints === 4 ? fourpoint : fivepoint;
+    for (let i = 0; i < perim.length; i++) {
+        if (!isFinite(perim[i])) {
+            reasons.push("Invalid side value at " + labels[i] + ".");
+        }
+    }
+    for (let i = 0; i < diag.length; i++) {
+        const labelIndex = numpoints === 4 ? 4 + i : 5 + i;
+        if (!isFinite(diag[i])) {
+            reasons.push("Invalid diagonal value at " + labels[labelIndex] + ".");
+        }
+    }
+    for (let i = 0; i < height.length; i++) {
+        const labelIndex = numpoints === 4 ? 6 + i : 10 + i;
+        if (!isFinite(height[i])) {
+            reasons.push("Invalid height value at " + labels[labelIndex] + ".");
+        }
+    }
+    const hCycle = height.slice();
+    hCycle.push(height[0]);
+    for (let i = 0; i < perim.length; i++) {
+        const rad = perim[i] ** 2 - (hCycle[i] - hCycle[i + 1]) ** 2;
+        if (rad < 0) {
+            reasons.push(
+                "Side " +
+                    labels[i] +
+                    " is shorter than height difference between adjacent corners, so horizontal length becomes imaginary."
+            );
+        }
+    }
+    for (let i = 0; i < diag.length; i++) {
+        let hA = 0;
+        let hB = 0;
+        if (numpoints === 4) {
+            if (i === 0) {
+                hA = height[0];
+                hB = height[2];
+            } else {
+                hA = height[1];
+                hB = height[3];
+            }
+        } else if (i < 2) {
+            hA = height[0];
+            hB = height[i + 2];
+        } else if (i < 4) {
+            hA = height[1];
+            hB = height[i + 1];
+        } else {
+            hA = height[2];
+            hB = height[i];
+        }
+        const rad = diag[i] ** 2 - (hA - hB) ** 2;
+        if (rad < 0) {
+            const info = diag_height_pair_info(numpoints, i);
+            const labelIndex = numpoints === 4 ? 4 + i : 5 + i;
+            reasons.push(
+                "Diagonal " +
+                    labels[labelIndex] +
+                    " is shorter than vertical difference (" +
+                    info.h1 +
+                    " vs " +
+                    info.h2 +
+                    "), so horizontal diagonal is invalid."
+            );
+        }
+    }
+    const [perimNorm, diagNorm] = normalised(perim.slice(), diag.slice(), height.slice());
+    const invalidAngles = [];
+    if (numpoints === 4 && perimNorm.length === 4 && diagNorm.length === 2) {
+        let j = 1;
+        for (let i = 0; i < 4; i++) {
+            const a = i === 0 ? perimNorm[3] : perimNorm[i - 1];
+            const b = perimNorm[i];
+            const c = diagNorm[j];
+            const denom = 2 * a * b;
+            const ratio = denom === 0 ? NaN : (a ** 2 + b ** 2 - c ** 2) / denom;
+            if (!isFinite(ratio) || ratio < -1 || ratio > 1) {
+                invalidAngles.push(labels[i] + " corner (cos ratio out of range)");
+            }
+            j = j === 0 ? 1 : 0;
+        }
+    } else if (numpoints === 5 && perimNorm.length === 5 && diagNorm.length === 5) {
+        const order = [3, 0, 2, 4, 1];
+        for (let i = 0; i < 5; i++) {
+            const a = i === 0 ? perimNorm[4] : perimNorm[i - 1];
+            const b = perimNorm[i];
+            const c = diagNorm[order[i]];
+            const denom = 2 * a * b;
+            const ratio = denom === 0 ? NaN : (a ** 2 + b ** 2 - c ** 2) / denom;
+            if (!isFinite(ratio) || ratio < -1 || ratio > 1) {
+                invalidAngles.push(labels[i] + " corner (likely reflex/internal or inconsistent lengths)");
+            }
+        }
+    }
+    if (invalidAngles.length > 0) {
+        reasons.push("Cosine-rule angle calculation failed at: " + invalidAngles.join(", ") + ".");
+    }
+    if (reasons.length === 0) {
+        reasons.push("Inputs are likely non-convex (internal/reflex corner) so angle-sum % error is not valid.");
+    }
+    return reasons.slice(0, 4);
 }
 function errorcheck() {
     var [perim, diag, height] = array_meas();
@@ -549,18 +894,24 @@ function disp_error() {
     var error = errorcheck();
     var errorNum = parseFloat(error);
     var text = "";
-    if (errorNum > 0.4) {
+    if (isNaN(errorNum)) {
+        text += '<table border="5" bordercolor="#666666" cellpadding="3" align="center"><tr><th>Error</th></tr>';
+    } else if (errorNum > 0.4) {
         text += '<table border="5" bordercolor="red"cellpadding="3" align="center"><tr><th>Error</th></tr>';
     } else {
         text += '<table border="5" bordercolor="green"cellpadding="3" align="center"><tr><th>Error</th></tr>';
     }
     text += "<tr><td>" + error + "</td></tr>";
+    if (isNaN(errorNum)) {
+        const [perim, diag, height] = array_meas();
+        const reasons = diagnose_angle_error_nan(perim, diag, height, numberofpoints());
+        text += "<tr><td><b>Why NaN:</b><br/>- " + reasons.join("<br/>- ") + "</td></tr>";
+    }
     text += "</table>";
     var showRecordId = document.getElementById("Error");
     showRecordId.innerHTML = text;
-    if (!isNaN(errorNum)) {
-        render_recommendations(errorNum);
-    }
+    render_recommendations(errorNum);
+    render_residual_fit();
 }
 function find_coord() {
     var [perim, diag, height] = array_meas();
