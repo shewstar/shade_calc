@@ -2,10 +2,13 @@ const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
 const STORAGE_KEY = "shadeCalcMeasurementsV1";
 const ERROR_PASS_THRESHOLD = 0.4;
-const RMS_PASS_THRESHOLD = 25;
+const RMS_PASS_THRESHOLD = 15;
+const RMS_MARGINAL_THRESHOLD = 25;
 const RECOMMENDER_ERROR_WEIGHT = 0.5;
 const RECOMMENDER_RMS_WEIGHT = 0.5;
 let currentRecommendations = [];
+let autoErrorUpdateEnabled = false;
+let autoErrorPrimed = false;
 var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function example5() {
@@ -51,9 +54,42 @@ function measurements(numpoints) {
 
     var showRecordId = document.getElementById("measurements");
     showRecordId.innerHTML = text;
+    wire_auto_error_inputs(numpoints);
 }
 function numberofpoints() {
     return parseInt(document.getElementById("numpoints").value);
+}
+function wire_auto_error_inputs(numpoints) {
+    const ids = numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : [];
+    for (let i = 0; i < ids.length; i++) {
+        const input = document.getElementById(ids[i]);
+        if (!input) {
+            continue;
+        }
+        if (input.dataset.autoErrorWired === "1") {
+            continue;
+        }
+        input.addEventListener("input", function () {
+            if (autoErrorPrimed && autoErrorUpdateEnabled) {
+                disp_error();
+            }
+        });
+        input.dataset.autoErrorWired = "1";
+    }
+}
+function set_auto_update_ui() {
+    const toggle = document.getElementById("autoUpdateToggle");
+    const status = document.getElementById("autoUpdateStatus");
+    if (!toggle || !status) {
+        return;
+    }
+    toggle.disabled = !autoErrorPrimed;
+    toggle.checked = autoErrorUpdateEnabled;
+    if (!autoErrorPrimed) {
+        status.textContent = "OFF (press Calculate Error first)";
+    } else {
+        status.textContent = autoErrorUpdateEnabled ? "ON" : "OFF";
+    }
 }
 function get_saved_collection() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -196,9 +232,21 @@ window.addEventListener("DOMContentLoaded", function () {
     refresh_saved_sets_dropdown("");
     const savedSetsSelect = document.getElementById("savedSets");
     const saveNameInput = document.getElementById("saveName");
+    const autoUpdateToggle = document.getElementById("autoUpdateToggle");
+    set_auto_update_ui();
     if (savedSetsSelect && saveNameInput) {
         savedSetsSelect.addEventListener("change", function () {
             saveNameInput.value = savedSetsSelect.value;
+        });
+    }
+    if (autoUpdateToggle) {
+        autoUpdateToggle.addEventListener("change", function () {
+            if (!autoErrorPrimed) {
+                autoUpdateToggle.checked = false;
+                return;
+            }
+            autoErrorUpdateEnabled = autoUpdateToggle.checked;
+            set_auto_update_ui();
         });
     }
 });
@@ -383,7 +431,7 @@ function combined_recommendation_score(angleError, rmsMismatch) {
     }
     return (RECOMMENDER_ERROR_WEIGHT * normalizedAngle + RECOMMENDER_RMS_WEIGHT * normalizedRms) / totalWeight;
 }
-function render_residual_fit() {
+function render_residual_fit(angleError, nanReasons) {
     const target = document.getElementById("residualFit");
     if (!target) {
         return;
@@ -394,9 +442,9 @@ function render_residual_fit() {
         return;
     }
     let residualStatus = { label: "FAIL", color: "red" };
-    if (result.rms <= 25) {
+    if (result.rms <= RMS_PASS_THRESHOLD) {
         residualStatus = { label: "PASS", color: "green" };
-    } else if (result.rms <= 40) {
+    } else if (result.rms <= RMS_MARGINAL_THRESHOLD) {
         residualStatus = { label: "MARGINAL", color: "#b59a00" };
     }
     let html = '<table border="1" cellpadding="4" align="center"><tr><th>Residual Fit</th></tr>';
@@ -412,6 +460,10 @@ function render_residual_fit() {
         " mm (" +
         result.max.label +
         ")</td></tr>";
+    const comparisonText = explain_error_vs_rms(angleError, result, nanReasons || []);
+    if (comparisonText) {
+        html += "<tr><td>" + comparisonText + "</td></tr>";
+    }
     html += "</table>";
     target.innerHTML = html;
 }
@@ -483,8 +535,8 @@ function recommend_adjustments() {
     const baseScore = combined_recommendation_score(baseError, baseResidualFit.rms);
     const angleErrorInvalid = isNaN(baseError);
     const measures = measurement_metadata(numpoints);
-    const step = 10;
-    const maxDelta = 40;
+    const step = 5;
+    const maxDelta = 80;
     const allCandidates = [];
     for (let m = 0; m < measures.length; m++) {
         const measure = measures[m];
@@ -531,14 +583,39 @@ function recommend_adjustments() {
     if (improvedCandidates.length >= 3) {
         return improvedCandidates.slice(0, 3);
     }
-    // In NaN angle-error cases, still show best RMS/combo options even if no strict "improvement" was found.
+    allCandidates.sort(function (a, b) {
+        if (a.newScore === b.newScore) {
+            return b.improvement - a.improvement;
+        }
+        return a.newScore - b.newScore;
+    });
+    // Always top-up with best-score candidates so Marginal/near-flat cases still show guidance.
+    const merged = [];
+    const seen = {};
+    for (let i = 0; i < improvedCandidates.length; i++) {
+        const key = improvedCandidates[i].label + ":" + improvedCandidates[i].delta;
+        seen[key] = true;
+        merged.push(improvedCandidates[i]);
+        if (merged.length >= 3) {
+            break;
+        }
+    }
+    for (let i = 0; i < allCandidates.length && merged.length < 3; i++) {
+        const key = allCandidates[i].label + ":" + allCandidates[i].delta;
+        if (seen[key]) {
+            continue;
+        }
+        merged.push(allCandidates[i]);
+        seen[key] = true;
+    }
+    if (merged.length > 0) {
+        return merged.slice(0, 3);
+    }
+    // Preserve previous NaN behavior as final fallback.
     if (angleErrorInvalid) {
-        allCandidates.sort(function (a, b) {
-            return a.newScore - b.newScore;
-        });
         return allCandidates.slice(0, 3);
     }
-    return improvedCandidates.slice(0, 3);
+    return [];
 }
 function render_recommendations(currentError) {
     const recommendationsDiv = document.getElementById("recommendations");
@@ -750,6 +827,51 @@ function diagnose_angle_error_nan(perim, diag, height, numpoints) {
     }
     return reasons.slice(0, 4);
 }
+function explain_nan_vs_rms(reasons, residualFitResult) {
+    if (!residualFitResult) {
+        return "";
+    }
+    if (residualFitResult.rms > RMS_PASS_THRESHOLD) {
+        return "Both checks are struggling: angle-based % error failed and RMS is also above PASS threshold.";
+    }
+    const likelyConcave = reasons.some(function (r) {
+        return (
+            r.toLowerCase().includes("reflex") ||
+            r.toLowerCase().includes("internal") ||
+            r.toLowerCase().includes("cosine-rule angle")
+        );
+    });
+    if (likelyConcave) {
+        return (
+            "RMS is passing because distance fitting can handle concave/internal-corner layouts, " +
+            "while % error fails because the angle-sum method assumes convex corner behavior."
+        );
+    }
+    return (
+        "RMS is passing because distances are still broadly consistent, " +
+        "but % error failed due to an angle-method limitation or invalid intermediate angle step."
+    );
+}
+function explain_error_vs_rms(angleError, residualFitResult, reasons) {
+    if (!residualFitResult) {
+        return "";
+    }
+    if (isNaN(angleError)) {
+        return explain_nan_vs_rms(reasons || [], residualFitResult);
+    }
+    const anglePass = angleError <= ERROR_PASS_THRESHOLD;
+    const rmsPass = residualFitResult.rms <= RMS_PASS_THRESHOLD;
+    if (anglePass && rmsPass) {
+        return "Both metrics pass: angle-closure and distance-fit checks agree.";
+    }
+    if (!anglePass && !rmsPass) {
+        return "Both metrics fail: measurements are likely inconsistent and should be rechecked.";
+    }
+    if (anglePass && !rmsPass) {
+        return "Angle % error passes but RMS fails: corner-angle closure is acceptable, but pairwise distances still disagree.";
+    }
+    return "RMS passes but angle % error fails: distances fit well, but angle-sum assumptions may not match this layout.";
+}
 function errorcheck() {
     var [perim, diag, height] = array_meas();
     var error = error_find(perim, diag, height);
@@ -891,6 +1013,11 @@ function error_sweep(size) {
     showRecordId.innerHTML = text;
 }
 function disp_error() {
+    if (!autoErrorPrimed) {
+        autoErrorPrimed = true;
+        autoErrorUpdateEnabled = true;
+        set_auto_update_ui();
+    }
     var error = errorcheck();
     var errorNum = parseFloat(error);
     var text = "";
@@ -902,16 +1029,23 @@ function disp_error() {
         text += '<table border="5" bordercolor="green"cellpadding="3" align="center"><tr><th>Error</th></tr>';
     }
     text += "<tr><td>" + error + "</td></tr>";
+    let nanReasons = [];
     if (isNaN(errorNum)) {
         const [perim, diag, height] = array_meas();
         const reasons = diagnose_angle_error_nan(perim, diag, height, numberofpoints());
+        nanReasons = reasons;
+        const residualResult = compute_residual_fit_from_measurements(numberofpoints(), perim, diag, height, 300);
+        const contrastExplanation = explain_nan_vs_rms(reasons, residualResult);
         text += "<tr><td><b>Why NaN:</b><br/>- " + reasons.join("<br/>- ") + "</td></tr>";
+        if (contrastExplanation) {
+            text += "<tr><td><b>Why RMS can still pass:</b><br/>" + contrastExplanation + "</td></tr>";
+        }
     }
     text += "</table>";
     var showRecordId = document.getElementById("Error");
     showRecordId.innerHTML = text;
     render_recommendations(errorNum);
-    render_residual_fit();
+    render_residual_fit(errorNum, nanReasons);
 }
 function find_coord() {
     var [perim, diag, height] = array_meas();

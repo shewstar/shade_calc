@@ -18,6 +18,20 @@
     input[type='number']{
         width: 100px;
     }
+    .eli5-box {
+        max-width: 1000px;
+        margin: 24px auto;
+        border: 1px solid #cccccc;
+        padding: 14px;
+        background: #fafafa;
+    }
+    .eli5-diagram {
+        font-family: Consolas, "Courier New", monospace;
+        white-space: pre;
+        background: #ffffff;
+        border: 1px solid #dddddd;
+        padding: 8px;
+    }
     </style>
 
 <body>
@@ -40,6 +54,11 @@
             <tr>
                 <td align="center">
                     <input type="button" value="Calculate Error" onclick="disp_error();" />
+                </td>
+                <td align="center">
+                    <label for="autoUpdateToggle">Auto update:</label>
+                    <input type="checkbox" id="autoUpdateToggle" disabled />
+                    <span id="autoUpdateStatus">OFF (press Calculate Error first)</span>
                 </td>
             </tr>
         </table>
@@ -79,11 +98,50 @@
                 </td>
             </tr>
         </table>
-        </td><td><input type="button" value="Ex 5 pointer" onclick="example5();" /></td>
+        </td><td><input type="button" value="Example 5 pointer" onclick="example5();" /></td>
     </tr>
         
         </table>
         <div id="drawing" align="center"></div>
+        <div class="eli5-box">
+            <h3>ELI5: How the two error checks work</h3>
+            <p><b>1) Percent Error (angle closure check)</b></p>
+            <p>
+                Think of joining sticks to make a loop. If the shape is perfect, all inside corner angles should add up to a known total.
+                For 4 points that total is 360 degrees. For 5 points that total is 540 degrees.
+                The app compares your calculated angle sum to the expected total.
+                The gap is shown as percent error.
+            </p>
+            <div class="eli5-diagram">Expected corner sum = (points - 2) * 180
+
+4-point:
+  A ----- B
+  |       |
+  D ----- C
+Expected: A+B+C+D = 360 degrees
+
+Percent Error = |actual sum - expected sum| / expected sum * 100</div>
+
+            <p><b>2) Residual Fit (distance mismatch check)</b></p>
+            <p>
+                Imagine placing pins for corners so all measured side and diagonal distances match as closely as possible.
+                For each measurement, the app checks how far off that best-fit shape is.
+                RMS is the average mismatch size in mm (lower is better).
+            </p>
+            <div class="eli5-diagram">Measured distances  --->  Best-fit shape  --->  Mismatch per line
+
+Example line mismatch:
+Measured A-C = 5650 mm
+Best-fit A-C = 5632 mm
+Residual = -18 mm
+
+RMS mismatch = "typical" residual size across all lines (in mm)</div>
+
+            <p>
+                <b>Why they can disagree:</b> angle percent is strict about corner-angle math (best for convex layouts),
+                while residual fit is strict about distance consistency (works better with internal/reflex corners too).
+            </p>
+        </div>
         <script src='./shadecode.js'></script>
 </body>
 
