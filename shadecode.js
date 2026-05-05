@@ -1,5 +1,6 @@
 const fourpoint = ["A-B", "B-C", "C-D", "D-A", "A-C", "B-D", "Ah", "Bh", "Ch", "Dh"];
 const fivepoint = ["A-B", "B-C", "C-D", "D-E", "E-A", "A-C", "A-D", "B-D", "B-E", "C-E", "Ah", "Bh", "Ch", "Dh", "Eh"];
+const STORAGE_KEY = "shadeCalcMeasurementsV1";
 var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function example5() {
@@ -49,6 +50,153 @@ function measurements(numpoints) {
 function numberofpoints() {
     return parseInt(document.getElementById("numpoints").value);
 }
+function get_saved_collection() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+        return { sets: {} };
+    }
+    let parsed = null;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (err) {
+        return { sets: {} };
+    }
+    // Backward compatibility with old single-save payload.
+    if (parsed && !parsed.sets && (parsed.numpoints === 4 || parsed.numpoints === 5) && Array.isArray(parsed.values)) {
+        const migrated = {
+            sets: {
+                "Saved Set": {
+                    numpoints: parsed.numpoints,
+                    values: parsed.values,
+                    savedAt: parsed.savedAt || new Date().toISOString(),
+                },
+            },
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        return migrated;
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.sets || typeof parsed.sets !== "object") {
+        return { sets: {} };
+    }
+    return parsed;
+}
+function set_saved_collection(collection) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
+}
+function refresh_saved_sets_dropdown(selectedName) {
+    const select = document.getElementById("savedSets");
+    if (!select) {
+        return;
+    }
+    const collection = get_saved_collection();
+    const names = Object.keys(collection.sets).sort();
+    let html = '<option value="">Select saved set</option>';
+    for (let i = 0; i < names.length; i++) {
+        const selectedAttr = selectedName === names[i] ? ' selected="selected"' : "";
+        html += '<option value="' + names[i] + '"' + selectedAttr + ">" + names[i] + "</option>";
+    }
+    select.innerHTML = html;
+}
+function get_selected_save_name() {
+    const saveNameInput = document.getElementById("saveName");
+    const savedSetsSelect = document.getElementById("savedSets");
+    const typedName = saveNameInput ? saveNameInput.value.trim() : "";
+    if (typedName) {
+        return typedName;
+    }
+    if (savedSetsSelect && savedSetsSelect.value) {
+        return savedSetsSelect.value;
+    }
+    return "";
+}
+function read_measurement_values(ids) {
+    const values = [];
+    for (let i = 0; i < ids.length; i++) {
+        const input = document.getElementById(ids[i]);
+        if (!input) {
+            return null;
+        }
+        values.push(input.value);
+    }
+    return values;
+}
+function write_measurement_values(ids, values) {
+    for (let i = 0; i < ids.length; i++) {
+        const input = document.getElementById(ids[i]);
+        if (!input) {
+            continue;
+        }
+        input.value = values[i] ?? "";
+    }
+}
+function save_measurements() {
+    const numpoints = numberofpoints();
+    if (numpoints !== 4 && numpoints !== 5) {
+        alert("Generate a 4 or 5 point measurement form first");
+        return;
+    }
+    const ids = numpoints === 4 ? fourpoint : fivepoint;
+    const values = read_measurement_values(ids);
+    if (!values) {
+        alert("Measurement inputs were not found");
+        return;
+    }
+    const saveName = get_selected_save_name();
+    if (!saveName) {
+        alert("Enter a save name or choose an existing saved set");
+        return;
+    }
+    const collection = get_saved_collection();
+    const payload = {
+        numpoints: numpoints,
+        values: values,
+        savedAt: new Date().toISOString(),
+    };
+    collection.sets[saveName] = payload;
+    set_saved_collection(collection);
+    if (document.getElementById("saveName")) {
+        document.getElementById("saveName").value = saveName;
+    }
+    refresh_saved_sets_dropdown(saveName);
+    alert('Measurements saved as "' + saveName + '"');
+}
+function load_measurements() {
+    const saveName = get_selected_save_name();
+    if (!saveName) {
+        alert("Enter or select a saved set name to load");
+        return;
+    }
+    const collection = get_saved_collection();
+    const payload = collection.sets[saveName];
+    if (!payload) {
+        alert('No saved set found named "' + saveName + '"');
+        refresh_saved_sets_dropdown("");
+        return;
+    }
+    const ids = payload.numpoints === 4 ? fourpoint : fivepoint;
+    if (payload.values.length !== ids.length) {
+        alert("Saved measurements do not match required fields");
+        return;
+    }
+    document.getElementById("numpoints").value = payload.numpoints;
+    measurements(payload.numpoints);
+    write_measurement_values(ids, payload.values);
+    if (document.getElementById("saveName")) {
+        document.getElementById("saveName").value = saveName;
+    }
+    refresh_saved_sets_dropdown(saveName);
+    alert('Loaded measurements from "' + saveName + '"');
+}
+window.addEventListener("DOMContentLoaded", function () {
+    refresh_saved_sets_dropdown("");
+    const savedSetsSelect = document.getElementById("savedSets");
+    const saveNameInput = document.getElementById("saveName");
+    if (savedSetsSelect && saveNameInput) {
+        savedSetsSelect.addEventListener("change", function () {
+            saveNameInput.value = savedSetsSelect.value;
+        });
+    }
+});
 function array_meas() {
     numpoints = numberofpoints();
     const perim = [];
