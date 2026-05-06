@@ -18,16 +18,19 @@ for shade sail layouts (4-point and 5-point configurations).
 
 ## Files
 
-| File                   | Description                             |
-| ---------------------- | --------------------------------------- |
-| `Shade_calc-rev2.html` | Main HTML page with embedded CSS styles |
-| `shadecode.js`         | All application logic                   |
-| `logo-150x150.png`     | Application logo                        |
-| `README.md`            | This file                               |
+| File               | Description                                 |
+| ------------------ | ------------------------------------------- |
+| `index.html`       | Main HTML page (served by GCS as homepage)  |
+| `404.html`         | Custom 404 error page                       |
+| `shadecode.js`     | All application logic                       |
+| `logo-150x150.png` | Application logo                            |
+| `README.md`        | This file                                   |
+| `gcloud-setup.sh`  | GCS bucket config script for static hosting |
+| `setup-guide.md`   | Cloudflare + HTTPS setup guide              |
 
 ## Usage
 
-1. Open `Shade_calc-rev2.html` in a web browser (requires internet for CDN-hosted libraries).
+1. Visit [https://www.sailtracker.org/](https://www.sailtracker.org/) or open `index.html` locally in a web browser (requires internet for CDN-hosted libraries).
 2. Select **4 pointer** or **5 pointer** to generate the measurement input form.
 3. Enter your measured distances:
    - **Perimeters**: lengths of the sail edges between adjacent corners
@@ -59,3 +62,8 @@ reported — lower means more self-consistent measurements.
 - Heights are normalised out of perimeter/diagonal measurements using Pythagoras' theorem.
 - The gradient descent optimizer uses adaptive learning rate (increases on success, decreases on failure).
 - NaN angle errors are diagnosed with specific messages indicating which measurement causes the issue.
+
+## HTTPS / Hosting
+
+The site is hosted on **Google Cloud Storage** with **Cloudflare** in front for HTTPS.
+See [`setup-guide.md`](setup-guide.md) for details on the Cloudflare setup.
