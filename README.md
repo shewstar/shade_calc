@@ -1,4 +1,6 @@
 @@ -0,0 +1,57 @@
+A single-page web application for calculating angle-closure error and residual-distance fit
+for shade sail layouts (4-point, 5-point, and 6-point configurations).
 
 # ASS Shade Calculator
 
@@ -31,7 +33,7 @@ for shade sail layouts (4-point and 5-point configurations).
 ## Usage
 
 1. Visit [https://www.sailtracker.org/](https://www.sailtracker.org/) or open `index.html` locally in a web browser (requires internet for CDN-hosted libraries).
-2. Select **4 pointer** or **5 pointer** to generate the measurement input form.
+2. Select **4 pointer**, **5 pointer**, or **6 pointer** to generate the measurement input form.
 3. Enter your measured distances:
    - **Perimeters**: lengths of the sail edges between adjacent corners
    - **Diagonals**: lengths between non-adjacent corners
@@ -48,7 +50,7 @@ for shade sail layouts (4-point and 5-point configurations).
 ### Percent Error (Angle Closure)
 
 All interior angles of a convex polygon sum to `(n-2) × 180°`. For a 4-point sail, the sum should be 360°;
-for a 5-point sail, 540°. The app computes each corner angle using the cosine rule on normalised
+for a 5-point sail, 540°; for a 6-point sail, 720°. The app computes each corner angle using the cosine rule on normalised
 (horizontal) lengths and reports the percent deviation from this expected sum.
 
 ### Residual Fit (Distance Consistency)

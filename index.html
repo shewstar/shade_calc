@@ -139,7 +139,7 @@
 /* Sail Configuration section */
 .sail-config-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 6px;
     align-items: center;
 }
@@ -167,6 +167,32 @@
 }
 .sail-config-row .ptr-btn.active:hover {
     background: #4f46e5;
+}
+
+.beta-badge {
+    display: inline-block;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 1.4;
+}
+.sail-config-row .ptr-btn.beta-btn {
+    background: #fefce8;
+    border-color: #f59e0b;
+}
+.sail-config-row .ptr-btn.beta-btn.active {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #fff;
+}
+.sail-config-row .ptr-btn.beta-btn.active:hover {
+    background: #d97706;
+    border-color: #d97706;
 }
 .sail-config-row .example-btn {
     font-size: 13px;
@@ -348,6 +374,43 @@
     }
     .table-scroll table {
         min-width: 220px;
+    }
+
+    .sweep-table {
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .sweep-table th {
+        padding: 1px 3px;
+        font-weight: 600;
+        white-space: nowrap;
+        border: 1px solid #999;
+        font-size: 13px;
+    }
+    .sweep-table td {
+        padding: 2px;
+        text-align: center;
+        border: 1px solid #999;
+    }
+.sweep-table .sweep-green { background: #006600; }
+    .sweep-table .sweep-yellow { background: #f0eb0c; }
+    .sweep-table .sweep-label {
+        padding: 1px 4px;
+        font-size: 13px;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+    .sweep-table .sweep-cell {
+        display: inline-block;
+        min-width: 30px;
+        padding: 1px 3px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 13px;
+        background: #fff;
+    }
+    .sweep-table .sweep-cell:hover {
+        filter: brightness(0.85);
     }
     .table-scroll-hint {
         font-size: 12px;
@@ -578,10 +641,13 @@
             <div class="sail-config-row">
                 <input type="button" class="ptr-btn active" data-ptr="4" value="4 pointer" onclick="measurements(4);" />
                 <input type="button" class="ptr-btn" data-ptr="5" value="5 pointer" onclick="measurements(5);" />
+                <button type="button" class="ptr-btn beta-btn" data-ptr="6" onclick="measurements(6);">6 pointer<span class="beta-badge">BETA</span></button>
             </div>
             <div style="text-align: center; margin-top: 6px;">
-                <button class="example-btn" onclick="example5();">Example &#9656;</button>
-            </div>
+                <div id="devExamples" style="display:none;">
+                    <button class="example-btn" onclick="example5();">Example 5 &#9656;</button>
+                    <button class="example-btn" onclick="example6();">Example 6 &#9656;</button>
+                </div>
 
             <hr class="section-divider" />
 
@@ -634,7 +700,7 @@
                     💡 Click any error value to apply that adjustment
                 </div>
             </div>
-            <div id='errorcheck'></div>
+            <div class="table-scroll"><div id='errorcheck'></div></div>
         </div>
 
         <div class="card">
@@ -650,7 +716,7 @@
             <p><b>1) Percent Error (angle closure check)</b></p>
             <p>
                 Think of joining sticks to make a loop. If the shape is perfect, all inside corner angles should add up to a known total.
-                For 4 points that total is 360 degrees. For 5 points that total is 540 degrees.
+                For 4 points that total is 360 degrees. For 5 points that total is 540 degrees. For 6 points that total is 720 degrees.
                 The app compares your calculated angle sum to the expected total.
                 The gap is shown as percent error.
             </p>
@@ -710,6 +776,13 @@ RMS mismatch = "typical" residual size across all lines (in mm)</div>
 
         <script src='./shadecode.js'></script>
     </div>
+        <!-- Dev Mode Toggle (bottom of page) -->
+        <div style="text-align:center; padding:12px; opacity:0.5; font-size:12px; color:#999;">
+            <label style="cursor:pointer;">
+                <input type="checkbox" id="devModeToggle"> Dev Mode (show example buttons)
+            </label>
+        </div>
+
 </body>
 
 </html>

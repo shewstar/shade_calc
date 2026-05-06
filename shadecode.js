@@ -43,13 +43,38 @@ const fivepoint = [
   "Eh",
 ];
 
+/** Label definitions for 6-point shade sails. */
+const sixpoint = [
+  "A-B",
+  "B-C",
+  "C-D",
+  "D-E",
+  "E-F",
+  "F-A",
+  "A-C",
+  "A-D",
+  "A-E",
+  "B-D",
+  "B-E",
+  "B-F",
+  "C-E",
+  "C-F",
+  "D-F",
+  "Ah",
+  "Bh",
+  "Ch",
+  "Dh",
+  "Eh",
+  "Fh",
+];
+
 /** localStorage key used for saving/loading measurement sets. */
 const STORAGE_KEY = "shadeCalcMeasurementsV1";
 
 /**
  * Returns the localStorage key used for autosave for a given point count.
- * Separate keys for 4-point and 5-point prevents switching from erasing data.
- * @param {number} numpoints - 4 or 5
+ * Separate keys for 4-point, 5-point, and 6-point prevents switching from erasing data.
+ * @param {number} numpoints - 4, 5, or 6
  * @returns {string}
  */
 function autosaveKey(numpoints) {
@@ -93,7 +118,7 @@ let lastSnapshot = null;
 /** History of measurement changes, used for the change log UI. */
 let changeHistory = [];
 
-/** Current number of points (4 or 5). Initialized to 4. */
+/** Current number of points (4, 5, or 6). Initialized to 4. */
 let currentNumpoints = 4;
 
 // ============================================================
@@ -101,17 +126,20 @@ let currentNumpoints = 4;
 // ============================================================
 
 /** Default test values for a 4-point sail. */
-var test4 = [3, 4, 3, 4, 5, 5, 2, 2, 2, 2];
+var test4 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 /** Default test values for a 5-point sail. */
 var test5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/** Default test values for a 6-point sail. */
+var test6 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 // ============================================================
 // DOM HELPERS
 // ============================================================
 
 /**
- * Returns the current number of points (4 or 5).
+ * Returns the current number of points (4, 5, or 6).
  * @returns {number}
  */
 function numberofpoints() {
@@ -120,7 +148,7 @@ function numberofpoints() {
 
 /**
  * Sets up or clears the measurement input form for a given number of points.
- * @param {number} numpoints - 4 or 5
+ * @param {number} numpoints - 4, 5, or 6
  */
 function measurements(numpoints) {
   currentNumpoints = numpoints;
@@ -129,7 +157,7 @@ function measurements(numpoints) {
   document.querySelectorAll(".ptr-btn").forEach(function (btn) {
     btn.classList.toggle(
       "active",
-      parseInt(btn.getAttribute("data-ptr")) === numpoints
+      parseInt(btn.getAttribute("data-ptr")) === numpoints,
     );
   });
 
@@ -139,7 +167,12 @@ function measurements(numpoints) {
     var raw = localStorage.getItem(autosaveKey(numpoints));
     if (raw) {
       var parsed = JSON.parse(raw);
-      var expectedLen = numpoints === 4 ? fourpoint.length : fivepoint.length;
+      var expectedLen =
+        numpoints === 4
+          ? fourpoint.length
+          : numpoints === 5
+            ? fivepoint.length
+            : sixpoint.length;
       if (
         parsed &&
         Array.isArray(parsed.values) &&
@@ -150,9 +183,10 @@ function measurements(numpoints) {
     }
   } catch (e) {}
 
-  const labels = numpoints === 4 ? fourpoint : fivepoint;
-  const perimCount = numpoints; // e.g. 4 or 5
-  const diagCount = numpoints === 4 ? 2 : 5; // diagonals
+  const labels =
+    numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
+  const perimCount = numpoints; // e.g. 4, 5, or 6
+  const diagCount = numpoints === 4 ? 2 : numpoints === 5 ? 5 : 9; // diagonals
   // heights = remaining labels after perim + diag
 
   let html =
@@ -231,9 +265,15 @@ function getTestValue(numpoints, labelIndex) {
   if (numpoints === 4) {
     return test4[labelIndex];
   }
-  return test5[labelIndex];
+  if (numpoints === 5) {
+    return test5[labelIndex];
+  }
+  return test6[labelIndex];
 }
 
+/**
+ * Loads example data for a 5-point sail and re-renders the form.
+ */
 /**
  * Loads example data for a 5-point sail and re-renders the form.
  */
@@ -246,6 +286,37 @@ function example5() {
   measurements(5);
 }
 
+/**
+ * Loads example data for a 6-point sail and re-renders the form.
+ */
+function example6() {
+  test6 = [
+    3000,
+    3000,
+    3000,
+    3000,
+    3000,
+    3000, // perimeters
+    5196,
+    6000,
+    5196,
+    5196,
+    6000,
+    5196,
+    5196,
+    6000,
+    5196, // diagonals
+    2000,
+    2000,
+    2000,
+    2000,
+    2000,
+    2000, // heights
+  ];
+  localStorage.removeItem(autosaveKey(6));
+  measurements(6);
+}
+
 // ============================================================
 // AUTO-UPDATE & INPUT WIRING
 // ============================================================
@@ -256,7 +327,14 @@ function example5() {
  * @param {number} numpoints
  */
 function wireAutoErrorInputs(numpoints) {
-  const ids = numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : [];
+  const ids =
+    numpoints === 4
+      ? fourpoint
+      : numpoints === 5
+        ? fivepoint
+        : numpoints === 6
+          ? sixpoint
+          : [];
   for (let i = 0; i < ids.length; i++) {
     const input = document.getElementById(ids[i]);
     if (!input || input.dataset.autoErrorWired === "1") {
@@ -322,14 +400,15 @@ function triggerAutosave() {
     return;
   }
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
     return;
   }
   if (autosaveTimer) {
     clearTimeout(autosaveTimer);
   }
   autosaveTimer = setTimeout(function () {
-    const ids = numpoints === 4 ? fourpoint : fivepoint;
+    const ids =
+      numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
     const values = readMeasurementValues(ids);
     if (!values) {
       return;
@@ -341,7 +420,7 @@ function triggerAutosave() {
           numpoints: numpoints,
           values: values,
           timestamp: new Date().toISOString(),
-        })
+        }),
       );
       const timeStr = new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -360,11 +439,13 @@ function triggerAutosave() {
  */
 function restoreAutosave() {
   try {
-    // Check both 4-point and 5-point autosaves, pick the one with the newer timestamp
+    // Check all autosaves, pick the one with the newer timestamp
     var raw4 = localStorage.getItem(autosaveKey(4));
     var raw5 = localStorage.getItem(autosaveKey(5));
+    var raw6 = localStorage.getItem(autosaveKey(6));
     var data4 = raw4 ? JSON.parse(raw4) : null;
     var data5 = raw5 ? JSON.parse(raw5) : null;
+    var data6 = raw6 ? JSON.parse(raw6) : null;
 
     // Validate data structures
     if (
@@ -379,22 +460,27 @@ function restoreAutosave() {
     ) {
       data5 = null;
     }
-
-    // Pick the newer one
-    var data = null;
-    if (data4 && data5) {
-      data =
-        new Date(data4.timestamp) >= new Date(data5.timestamp) ? data4 : data5;
-    } else {
-      data = data4 || data5;
+    if (
+      data6 &&
+      (!Array.isArray(data6.values) || data6.values.length !== sixpoint.length)
+    ) {
+      data6 = null;
     }
 
-    if (!data) {
-      return;
-    }
+    // Pick the newest one
+    var allData = [];
+    if (data4) allData.push(data4);
+    if (data5) allData.push(data5);
+    if (data6) allData.push(data6);
+    if (allData.length === 0) return;
+    allData.sort(function (a, b) {
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    });
+    var data = allData[0];
 
-    var numpoints = data === data4 ? 4 : 5;
-    var ids = numpoints === 4 ? fourpoint : fivepoint;
+    var numpoints = data === data4 ? 4 : data === data5 ? 5 : 6;
+    var ids =
+      numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
 
     // Suppress triggerAutosave while we populate: measurements() calls it, but the DOM
     // still has default test values at that point, so we must not overwrite the autosave.
@@ -557,12 +643,13 @@ function writeMeasurementValues(ids, values) {
  */
 function save_measurements() {
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
-    alert("Generate a 4 or 5 point measurement form first");
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
+    alert("Generate a 4, 5, or 6 point measurement form first");
     return;
   }
 
-  const ids = numpoints === 4 ? fourpoint : fivepoint;
+  const ids =
+    numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
   const values = readMeasurementValues(ids);
   if (!values) {
     alert("Measurement inputs were not found");
@@ -634,7 +721,12 @@ function load_measurements() {
     return;
   }
 
-  const ids = payload.numpoints === 4 ? fourpoint : fivepoint;
+  const ids =
+    payload.numpoints === 4
+      ? fourpoint
+      : payload.numpoints === 5
+        ? fivepoint
+        : sixpoint;
   if (payload.values.length !== ids.length) {
     alert("Saved measurements do not match required fields");
     return;
@@ -838,7 +930,12 @@ function loadSetFromManager(name) {
     renderSavedSetsTable();
     return;
   }
-  const ids = payload.numpoints === 4 ? fourpoint : fivepoint;
+  const ids =
+    payload.numpoints === 4
+      ? fourpoint
+      : payload.numpoints === 5
+        ? fivepoint
+        : sixpoint;
   if (payload.values.length !== ids.length) {
     alert("Saved measurements do not match required fields");
     return;
@@ -936,7 +1033,7 @@ function exportSingleSet(name) {
       },
     },
     null,
-    2
+    2,
   );
   const blob = new Blob([exportData], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -1078,6 +1175,33 @@ function sortSavedSets(key) {
   }
   renderSavedSetsTable();
 }
+
+// ============================================================
+// DEV MODE TOGGLE
+// ============================================================
+
+/**
+ * Initializes the dev mode toggle at the bottom of the page.
+ * Shows/hides example buttons based on checkbox state, persisted in localStorage.
+ */
+function initDevMode() {
+  const toggle = document.getElementById("devModeToggle");
+  const examples = document.getElementById("devExamples");
+  if (!toggle || !examples) return;
+
+  // Restore saved state
+  const saved = localStorage.getItem("shadeDevMode") === "true";
+  toggle.checked = saved;
+  examples.style.display = saved ? "block" : "none";
+
+  // Persist on change
+  toggle.addEventListener("change", function () {
+    const on = toggle.checked;
+    localStorage.setItem("shadeDevMode", on ? "true" : "false");
+    examples.style.display = on ? "block" : "none";
+  });
+}
+
 // ============================================================
 // DOM INITIALIZATION
 // ============================================================
@@ -1094,6 +1218,7 @@ window.addEventListener("DOMContentLoaded", function () {
 
   setAutoUpdateUi();
   restoreAutosave();
+  initDevMode();
 
   // When a saved set is selected from the dropdown, fill the save-name input
   if (savedSetsSelect && saveNameInput) {
@@ -1164,6 +1289,17 @@ function array_meas() {
         height.push(val);
       }
     }
+  } else if (numpoints === 6) {
+    for (let i = 0; i < sixpoint.length; i++) {
+      const val = parseFloat(document.getElementById(sixpoint[i]).value);
+      if (i < 6) {
+        perim.push(val);
+      } else if (i < 15) {
+        diag.push(val);
+      } else {
+        height.push(val);
+      }
+    }
   }
 
   return [perim, diag, height];
@@ -1177,7 +1313,7 @@ function array_meas() {
  * Builds an array of distance constraint objects describing which points
  * are connected and what their measured distances are.
  *
- * @param {number} numpoints - 4 or 5
+ * @param {number} numpoints - 4, 5, or 6
  * @param {number[]} perim - Perimeter measurements
  * @param {number[]} diag  - Diagonal measurements
  * @returns {Array<{i: number, j: number, d: number, label: string}>}
@@ -1193,18 +1329,37 @@ function buildDistanceConstraints(numpoints, perim, diag) {
       { i: 1, j: 3, d: diag[1], label: "B-D" },
     ];
   }
-  // 5-point
+  if (numpoints === 5) {
+    return [
+      { i: 0, j: 1, d: perim[0], label: "A-B" },
+      { i: 1, j: 2, d: perim[1], label: "B-C" },
+      { i: 2, j: 3, d: perim[2], label: "C-D" },
+      { i: 3, j: 4, d: perim[3], label: "D-E" },
+      { i: 4, j: 0, d: perim[4], label: "E-A" },
+      { i: 0, j: 2, d: diag[0], label: "A-C" },
+      { i: 0, j: 3, d: diag[1], label: "A-D" },
+      { i: 1, j: 3, d: diag[2], label: "B-D" },
+      { i: 1, j: 4, d: diag[3], label: "B-E" },
+      { i: 2, j: 4, d: diag[4], label: "C-E" },
+    ];
+  }
+  // 6-point
   return [
     { i: 0, j: 1, d: perim[0], label: "A-B" },
     { i: 1, j: 2, d: perim[1], label: "B-C" },
     { i: 2, j: 3, d: perim[2], label: "C-D" },
     { i: 3, j: 4, d: perim[3], label: "D-E" },
-    { i: 4, j: 0, d: perim[4], label: "E-A" },
+    { i: 4, j: 5, d: perim[4], label: "E-F" },
+    { i: 5, j: 0, d: perim[5], label: "F-A" },
     { i: 0, j: 2, d: diag[0], label: "A-C" },
     { i: 0, j: 3, d: diag[1], label: "A-D" },
-    { i: 1, j: 3, d: diag[2], label: "B-D" },
-    { i: 1, j: 4, d: diag[3], label: "B-E" },
-    { i: 2, j: 4, d: diag[4], label: "C-E" },
+    { i: 0, j: 4, d: diag[2], label: "A-E" },
+    { i: 1, j: 3, d: diag[3], label: "B-D" },
+    { i: 1, j: 4, d: diag[4], label: "B-E" },
+    { i: 1, j: 5, d: diag[5], label: "B-F" },
+    { i: 2, j: 4, d: diag[6], label: "C-E" },
+    { i: 2, j: 5, d: diag[7], label: "C-F" },
+    { i: 3, j: 5, d: diag[8], label: "D-F" },
   ];
 }
 
@@ -1277,7 +1432,7 @@ function residualCost(numpoints, vars, abHorizontal, heights, constraints) {
     const p2 = getXyForPoint(c.j, vars, abHorizontal);
     const dz = heights[c.i] - heights[c.j];
     const modeled = Math.sqrt(
-      (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2
+      (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2,
     );
     sumSquares += (modeled - c.d) ** 2;
   }
@@ -1337,22 +1492,22 @@ function solveFourPointAnalytic(
   diag,
   height,
   numpoints,
-  constraints
+  constraints,
 ) {
   var bcH = Math.sqrt(
-    perim[1] * perim[1] - (height[1] - height[2]) * (height[1] - height[2])
+    perim[1] * perim[1] - (height[1] - height[2]) * (height[1] - height[2]),
   );
   var cdH = Math.sqrt(
-    perim[2] * perim[2] - (height[2] - height[3]) * (height[2] - height[3])
+    perim[2] * perim[2] - (height[2] - height[3]) * (height[2] - height[3]),
   );
   var daH = Math.sqrt(
-    perim[3] * perim[3] - (height[3] - height[0]) * (height[3] - height[0])
+    perim[3] * perim[3] - (height[3] - height[0]) * (height[3] - height[0]),
   );
   var acH = Math.sqrt(
-    diag[0] * diag[0] - (height[0] - height[2]) * (height[0] - height[2])
+    diag[0] * diag[0] - (height[0] - height[2]) * (height[0] - height[2]),
   );
   var bdH = Math.sqrt(
-    diag[1] * diag[1] - (height[1] - height[3]) * (height[1] - height[3])
+    diag[1] * diag[1] - (height[1] - height[3]) * (height[1] - height[3]),
   );
 
   if (isNaN(bcH) || isNaN(cdH) || isNaN(daH) || isNaN(acH) || isNaN(bdH)) {
@@ -1375,7 +1530,7 @@ function solveFourPointAnalytic(
         vars,
         abHorizontal,
         height,
-        constraints
+        constraints,
       );
       candidates.push({ vars: vars, cost: cst });
     }
@@ -1421,7 +1576,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
       diag,
       height,
       numpoints,
-      constraints
+      constraints,
     );
     if (analyticVars) {
       const cost = residualCost(
@@ -1429,7 +1584,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
         analyticVars,
         abHorizontal,
         height,
-        constraints
+        constraints,
       );
       return {
         vars: analyticVars,
@@ -1448,7 +1603,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
     vars,
     abHorizontal,
     height,
-    constraints
+    constraints,
   );
   const eps = 0.001;
   const iterations = maxIterations || 1200;
@@ -1464,7 +1619,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
         vars,
         abHorizontal,
         height,
-        constraints
+        constraints,
       );
       vars[i] = oldVal - eps;
       const c2 = residualCost(
@@ -1472,7 +1627,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
         vars,
         abHorizontal,
         height,
-        constraints
+        constraints,
       );
       vars[i] = oldVal;
       grad[i] = (c1 - c2) / (2 * eps);
@@ -1489,7 +1644,7 @@ function optimizeDistanceFit(numpoints, perim, diag, height, maxIterations) {
       candidate,
       abHorizontal,
       height,
-      constraints
+      constraints,
     );
     if (candidateCost < bestCost) {
       vars = candidate;
@@ -1530,7 +1685,7 @@ function computeResidualFitFromMeasurements(
   perim,
   diag,
   height,
-  maxIterations
+  maxIterations,
 ) {
   // Validate inputs
   if (
@@ -1552,7 +1707,7 @@ function computeResidualFitFromMeasurements(
     perim,
     diag,
     height,
-    maxIterations
+    maxIterations,
   );
   if (!fit) {
     return null;
@@ -1566,7 +1721,7 @@ function computeResidualFitFromMeasurements(
     const p2 = getXyForPoint(c.j, fit.vars, fit.abHorizontal);
     const dz = height[c.i] - height[c.j];
     const modeled = Math.sqrt(
-      (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2
+      (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + dz ** 2,
     );
     const residual = modeled - c.d;
     residuals.push({
@@ -1597,7 +1752,7 @@ function computeResidualFitFromMeasurements(
  */
 function computeResidualFit() {
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
     return null;
   }
   const [perim, diag, height] = array_meas();
@@ -1606,7 +1761,7 @@ function computeResidualFit() {
     perim,
     diag,
     height,
-    1200
+    1200,
   );
 }
 
@@ -1696,23 +1851,48 @@ function measurementMetadata(numpoints) {
       { label: fourpoint[9], group: "height", index: 3 },
     ];
   }
-  // 5-point
+  if (numpoints === 5) {
+    return [
+      { label: fivepoint[0], group: "perim", index: 0 },
+      { label: fivepoint[1], group: "perim", index: 1 },
+      { label: fivepoint[2], group: "perim", index: 2 },
+      { label: fivepoint[3], group: "perim", index: 3 },
+      { label: fivepoint[4], group: "perim", index: 4 },
+      { label: fivepoint[5], group: "diag", index: 0 },
+      { label: fivepoint[6], group: "diag", index: 1 },
+      { label: fivepoint[7], group: "diag", index: 2 },
+      { label: fivepoint[8], group: "diag", index: 3 },
+      { label: fivepoint[9], group: "diag", index: 4 },
+      { label: fivepoint[10], group: "height", index: 0 },
+      { label: fivepoint[11], group: "height", index: 1 },
+      { label: fivepoint[12], group: "height", index: 2 },
+      { label: fivepoint[13], group: "height", index: 3 },
+      { label: fivepoint[14], group: "height", index: 4 },
+    ];
+  }
+  // 6-point
   return [
-    { label: fivepoint[0], group: "perim", index: 0 },
-    { label: fivepoint[1], group: "perim", index: 1 },
-    { label: fivepoint[2], group: "perim", index: 2 },
-    { label: fivepoint[3], group: "perim", index: 3 },
-    { label: fivepoint[4], group: "perim", index: 4 },
-    { label: fivepoint[5], group: "diag", index: 0 },
-    { label: fivepoint[6], group: "diag", index: 1 },
-    { label: fivepoint[7], group: "diag", index: 2 },
-    { label: fivepoint[8], group: "diag", index: 3 },
-    { label: fivepoint[9], group: "diag", index: 4 },
-    { label: fivepoint[10], group: "height", index: 0 },
-    { label: fivepoint[11], group: "height", index: 1 },
-    { label: fivepoint[12], group: "height", index: 2 },
-    { label: fivepoint[13], group: "height", index: 3 },
-    { label: fivepoint[14], group: "height", index: 4 },
+    { label: sixpoint[0], group: "perim", index: 0 },
+    { label: sixpoint[1], group: "perim", index: 1 },
+    { label: sixpoint[2], group: "perim", index: 2 },
+    { label: sixpoint[3], group: "perim", index: 3 },
+    { label: sixpoint[4], group: "perim", index: 4 },
+    { label: sixpoint[5], group: "perim", index: 5 },
+    { label: sixpoint[6], group: "diag", index: 0 },
+    { label: sixpoint[7], group: "diag", index: 1 },
+    { label: sixpoint[8], group: "diag", index: 2 },
+    { label: sixpoint[9], group: "diag", index: 3 },
+    { label: sixpoint[10], group: "diag", index: 4 },
+    { label: sixpoint[11], group: "diag", index: 5 },
+    { label: sixpoint[12], group: "diag", index: 6 },
+    { label: sixpoint[13], group: "diag", index: 7 },
+    { label: sixpoint[14], group: "diag", index: 8 },
+    { label: sixpoint[15], group: "height", index: 0 },
+    { label: sixpoint[16], group: "height", index: 1 },
+    { label: sixpoint[17], group: "height", index: 2 },
+    { label: sixpoint[18], group: "height", index: 3 },
+    { label: sixpoint[19], group: "height", index: 4 },
+    { label: sixpoint[20], group: "height", index: 5 },
   ];
 }
 
@@ -1749,7 +1929,7 @@ function applyDeltaToArrays(perim, diag, height, measure, delta) {
  */
 function recommendAdjustments() {
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
     return [];
   }
 
@@ -1757,14 +1937,14 @@ function recommendAdjustments() {
   const baseError = errorFind(
     basePerim.slice(),
     baseDiag.slice(),
-    baseHeight.slice()
+    baseHeight.slice(),
   );
   const baseResidualFit = computeResidualFitFromMeasurements(
     numpoints,
     basePerim,
     baseDiag,
     baseHeight,
-    300
+    300,
   );
 
   if (!baseResidualFit) {
@@ -1791,7 +1971,7 @@ function recommendAdjustments() {
       const [perim, diag, height] = cloneMeasurementArrays(
         basePerim,
         baseDiag,
-        baseHeight
+        baseHeight,
       );
       applyDeltaToArrays(perim, diag, height, measure, delta);
 
@@ -1801,7 +1981,7 @@ function recommendAdjustments() {
         perim,
         diag,
         height,
-        180
+        180,
       );
       if (!newResidualFit) {
         continue;
@@ -1809,7 +1989,7 @@ function recommendAdjustments() {
 
       const newScore = combinedRecommendationScore(
         newError,
-        newResidualFit.rms
+        newResidualFit.rms,
       );
       const improvement = baseScore - newScore;
 
@@ -1939,7 +2119,7 @@ function renderResidualFit(angleError, nanReasons) {
   const comparisonText = explainErrorVsRms(
     angleError,
     result,
-    nanReasons || []
+    nanReasons || [],
   );
   if (comparisonText) {
     html += "<tr><td>" + comparisonText + "</td></tr>";
@@ -1963,13 +2143,27 @@ function diagHeightPairInfo(numpoints, diagIndex) {
   if (numpoints === 4) {
     return diagIndex === 0 ? { h1: "Ah", h2: "Ch" } : { h1: "Bh", h2: "Dh" };
   }
-  // 5-point
+  if (numpoints === 5) {
+    const pairs = [
+      { h1: "Ah", h2: "Ch" },
+      { h1: "Ah", h2: "Dh" },
+      { h1: "Bh", h2: "Dh" },
+      { h1: "Bh", h2: "Eh" },
+      { h1: "Ch", h2: "Eh" },
+    ];
+    return pairs[diagIndex] || { h1: "?", h2: "?" };
+  }
+  // 6-point
   const pairs = [
     { h1: "Ah", h2: "Ch" },
     { h1: "Ah", h2: "Dh" },
+    { h1: "Ah", h2: "Eh" },
     { h1: "Bh", h2: "Dh" },
     { h1: "Bh", h2: "Eh" },
+    { h1: "Bh", h2: "Fh" },
     { h1: "Ch", h2: "Eh" },
+    { h1: "Ch", h2: "Fh" },
+    { h1: "Dh", h2: "Fh" },
   ];
   return pairs[diagIndex] || { h1: "?", h2: "?" };
 }
@@ -1986,7 +2180,8 @@ function diagHeightPairInfo(numpoints, diagIndex) {
  */
 function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
   const reasons = [];
-  const labels = numpoints === 4 ? fourpoint : fivepoint;
+  const labels =
+    numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
 
   // Check for invalid (non-finite) values
   for (let i = 0; i < perim.length; i++) {
@@ -1995,13 +2190,15 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
     }
   }
   for (let i = 0; i < diag.length; i++) {
-    const labelIndex = numpoints === 4 ? 4 + i : 5 + i;
+    const labelIndex =
+      numpoints === 4 ? 4 + i : numpoints === 5 ? 5 + i : 6 + i;
     if (!isFinite(diag[i])) {
       reasons.push("Invalid diagonal value at " + labels[labelIndex] + ".");
     }
   }
   for (let i = 0; i < height.length; i++) {
-    const labelIndex = numpoints === 4 ? 6 + i : 10 + i;
+    const labelIndex =
+      numpoints === 4 ? 6 + i : numpoints === 5 ? 10 + i : 15 + i;
     if (!isFinite(height[i])) {
       reasons.push("Invalid height value at " + labels[labelIndex] + ".");
     }
@@ -2016,7 +2213,7 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
       reasons.push(
         "Side " +
           labels[i] +
-          " is shorter than height difference between adjacent corners, so horizontal length becomes imaginary."
+          " is shorter than height difference between adjacent corners, so horizontal length becomes imaginary.",
       );
     }
   }
@@ -2027,21 +2224,38 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
     if (numpoints === 4) {
       hA = height[i === 0 ? 0 : 1];
       hB = height[i === 0 ? 2 : 3];
-    } else if (i < 2) {
-      hA = height[0];
-      hB = height[i + 2];
-    } else if (i < 4) {
-      hA = height[1];
-      hB = height[i + 1];
+    } else if (numpoints === 5) {
+      if (i < 2) {
+        hA = height[0];
+        hB = height[i + 2];
+      } else if (i < 4) {
+        hA = height[1];
+        hB = height[i + 1];
+      } else {
+        hA = height[2];
+        hB = height[i];
+      }
     } else {
-      hA = height[2];
-      hB = height[i];
+      // 6-point
+      if (i < 3) {
+        hA = height[0];
+        hB = height[i + 2];
+      } else if (i < 6) {
+        hA = height[1];
+        hB = height[i];
+      } else if (i < 8) {
+        hA = height[2];
+        hB = height[i - 2];
+      } else {
+        hA = height[3];
+        hB = height[i - 3];
+      }
     }
-
     const rad = diag[i] ** 2 - (hA - hB) ** 2;
     if (rad < 0) {
       const info = diagHeightPairInfo(numpoints, i);
-      const labelIndex = numpoints === 4 ? 4 + i : 5 + i;
+      const labelIndex =
+        numpoints === 4 ? 4 + i : numpoints === 5 ? 5 + i : 6 + i;
       reasons.push(
         "Diagonal " +
           labels[labelIndex] +
@@ -2049,7 +2263,7 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
           info.h1 +
           " vs " +
           info.h2 +
-          "), so horizontal diagonal is invalid."
+          "), so horizontal diagonal is invalid.",
       );
     }
   }
@@ -2058,7 +2272,7 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
   const [perimNorm, diagNorm] = normalised(
     perim.slice(),
     diag.slice(),
-    height.slice()
+    height.slice(),
   );
   const invalidAngles = [];
 
@@ -2091,7 +2305,28 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
         denom === 0 ? NaN : (aSide ** 2 + bSide ** 2 - cSide ** 2) / denom;
       if (!isFinite(ratio) || ratio < -1 || ratio > 1) {
         invalidAngles.push(
-          labels[i] + " corner (likely reflex/internal or inconsistent lengths)"
+          labels[i] +
+            " corner (likely reflex/internal or inconsistent lengths)",
+        );
+      }
+    }
+  } else if (
+    numpoints === 6 &&
+    perimNorm.length === 6 &&
+    diagNorm.length === 9
+  ) {
+    const order = [5, 0, 3, 6, 8, 2];
+    for (let i = 0; i < 6; i++) {
+      const aSide = i === 0 ? perimNorm[5] : perimNorm[i - 1];
+      const bSide = perimNorm[i];
+      const cSide = diagNorm[order[i]];
+      const denom = 2 * aSide * bSide;
+      const ratio =
+        denom === 0 ? NaN : (aSide ** 2 + bSide ** 2 - cSide ** 2) / denom;
+      if (!isFinite(ratio) || ratio < -1 || ratio > 1) {
+        invalidAngles.push(
+          labels[i] +
+            " corner (likely reflex/internal or inconsistent lengths)",
         );
       }
     }
@@ -2101,13 +2336,13 @@ function diagnoseAngleErrorNan(perim, diag, height, numpoints) {
     reasons.push(
       "Cosine-rule angle calculation failed at: " +
         invalidAngles.join(", ") +
-        "."
+        ".",
     );
   }
 
   if (reasons.length === 0) {
     reasons.push(
-      "Inputs are likely non-convex (internal/reflex corner) so angle-sum % error is not valid."
+      "Inputs are likely non-convex (internal/reflex corner) so angle-sum % error is not valid.",
     );
   }
 
@@ -2209,33 +2444,56 @@ function normalised(perim, diag, height) {
   // Append first height to simplify cyclical reference
   height.push(height[0]);
 
+  function normPerim(i) {
+    return Math.sqrt(perim[i] ** 2 - (height[i] - height[i + 1]) ** 2);
+  }
+
   if (perim.length === 4) {
     for (let i = 0; i < perim.length; i++) {
-      perimNorm.push(
-        Math.sqrt(perim[i] ** 2 - (height[i] - height[i + 1]) ** 2)
-      );
+      perimNorm.push(normPerim(i));
       if (i < diag.length) {
         diagNorm.push(
-          Math.sqrt(diag[i] ** 2 - (height[i] - height[i + 2]) ** 2)
+          Math.sqrt(diag[i] ** 2 - (height[i] - height[i + 2]) ** 2),
         );
       }
     }
   } else if (perim.length === 5) {
     for (let i = 0; i < perim.length; i++) {
-      perimNorm.push(
-        Math.sqrt(perim[i] ** 2 - (height[i] - height[i + 1]) ** 2)
-      );
+      perimNorm.push(normPerim(i));
       if (i < 2) {
         diagNorm.push(
-          Math.sqrt(diag[i] ** 2 - (height[0] - height[i + 2]) ** 2)
+          Math.sqrt(diag[i] ** 2 - (height[0] - height[i + 2]) ** 2),
         );
       } else if (i < 4) {
         diagNorm.push(
-          Math.sqrt(diag[i] ** 2 - (height[1] - height[i + 1]) ** 2)
+          Math.sqrt(diag[i] ** 2 - (height[1] - height[i + 1]) ** 2),
         );
       } else {
         diagNorm.push(Math.sqrt(diag[i] ** 2 - (height[2] - height[i]) ** 2));
       }
+    }
+  } else if (perim.length === 6) {
+    // 6-point: 6 perimeters + 9 diagonals (more diagonals than perimeters)
+    for (let i = 0; i < perim.length; i++) {
+      perimNorm.push(normPerim(i));
+    }
+    // Compute all 9 diagonal normalisations
+    for (let i = 0; i < diag.length; i++) {
+      var dh;
+      if (i < 3) {
+        // A-C (0): h0-h2, A-D (1): h0-h3, A-E (2): h0-h4
+        dh = height[0] - height[i + 2];
+      } else if (i < 6) {
+        // B-D (3): h1-h3, B-E (4): h1-h4, B-F (5): h1-h5
+        dh = height[1] - height[i];
+      } else if (i < 8) {
+        // C-E (6): h2-h4, C-F (7): h2-h5
+        dh = height[2] - height[i - 2];
+      } else {
+        // D-F (8): h3-h5
+        dh = height[3] - height[i - 3];
+      }
+      diagNorm.push(Math.sqrt(diag[i] ** 2 - dh ** 2));
     }
   } else {
     alert("error with normalising");
@@ -2293,6 +2551,14 @@ function errorFind(perim, diag, height) {
       const cSide = diagNorm[order[i]];
       sum.push(findAngle(aSide, bSide, cSide));
     }
+  } else if (numpoints === 6) {
+    const order = [5, 0, 3, 6, 8, 2];
+    for (let i = 0; i < numpoints; i++) {
+      const aSide = i === 0 ? perimNorm[5] : perimNorm[i - 1];
+      const bSide = perimNorm[i];
+      const cSide = diagNorm[order[i]];
+      sum.push(findAngle(aSide, bSide, cSide));
+    }
   }
 
   const totalSum = sum.reduce(function (acc, curr) {
@@ -2339,23 +2605,29 @@ function makeSweepCellHtml(error, label, delta) {
 
   if (error < 0.3) {
     return (
-      '<td bgcolor="#006600"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff"><span' +
+      '<td class="sweep-green"><span class="sweep-cell"' +
       clickAttr +
       ">" +
       errorText +
-      "</span></td></tr></table></td>"
+      "</span></td>"
     );
   }
   if (error < 0.6) {
     return (
-      '<td bgcolor="#f0eb0c"><table border="0" cellpadding="4" cellspacing="0" align="center"><tr><td bgcolor="#ffffff"><span' +
+      '<td class="sweep-yellow"><span class="sweep-cell"' +
       clickAttr +
       ">" +
       errorText +
-      "</span></td></tr></table></td>"
+      "</span></td>"
     );
   }
-  return "<td><span" + clickAttr + ">" + errorText + "</span></td>";
+  return (
+    '<td><span class="sweep-cell"' +
+    clickAttr +
+    ">" +
+    errorText +
+    "</span></td>"
+  );
 }
 
 /**
@@ -2378,8 +2650,13 @@ function errorCycle(size) {
   // Sweep perimeters
   for (let i = 0; i < perim.length; i++) {
     const temp = perim[i];
-    const label = numpoints === 4 ? fourpoint[i] : fivepoint[i];
-    errorPerim += "<tr><td>" + label + "</td>";
+    const label =
+      numpoints === 4
+        ? fourpoint[i]
+        : numpoints === 5
+          ? fivepoint[i]
+          : sixpoint[i];
+    errorPerim += '<tr><td class="sweep-label">' + label + "</td>";
     for (let j = -5; j < 6; j++) {
       if (i === 0) {
         errorHead += "<th>" + (j * size).toFixed(2) + "</th>";
@@ -2396,8 +2673,12 @@ function errorCycle(size) {
   for (let i = 0; i < diag.length; i++) {
     const temp = diag[i];
     const label =
-      numpoints === 4 ? fourpoint[i + numpoints] : fivepoint[i + numpoints];
-    errorDiag += "<tr><td>" + label + "</td>";
+      numpoints === 4
+        ? fourpoint[i + numpoints]
+        : numpoints === 5
+          ? fivepoint[i + numpoints]
+          : sixpoint[i + 6];
+    errorDiag += '<tr><td class="sweep-label">' + label + "</td>";
     for (let j = -5; j < 6; j++) {
       diag[i] += j * size;
       const err = errorFind(perim, diag, height);
@@ -2413,8 +2694,10 @@ function errorCycle(size) {
     const label =
       numpoints === 4
         ? fourpoint[i + numpoints + 2]
-        : fivepoint[i + numpoints + 5];
-    errorHeight += "<tr><td>" + label + "</td>";
+        : numpoints === 5
+          ? fivepoint[i + numpoints + 5]
+          : sixpoint[i + 15];
+    errorHeight += '<tr><td class="sweep-label">' + label + "</td>";
     for (let j = -5; j < 6; j++) {
       height[i] += j * size;
       const err = errorFind(perim, diag, height);
@@ -2433,7 +2716,7 @@ function errorCycle(size) {
  */
 function error_sweep(size) {
   let html =
-    '<table border="5" cellpadding="3" align="center"><tr><th>Measurment</th>';
+    '<table class="sweep-table" align="center"><tr><th>Measurment</th>';
   html += errorCycle(size);
   html += "</table>";
   document.getElementById("errorcheck").innerHTML = html;
@@ -2485,11 +2768,12 @@ function applySweepAdjustment(label, delta) {
  */
 function snapshotMeasurements() {
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
     return null;
   }
 
-  const ids = numpoints === 4 ? fourpoint : fivepoint;
+  const ids =
+    numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
   const snap = {};
   for (let i = 0; i < ids.length; i++) {
     const input = document.getElementById(ids[i]);
@@ -2508,14 +2792,20 @@ function snapshotMeasurements() {
  * Clears all measurement input fields and resets result displays.
  */
 function clear_all() {
+  if (
+    !confirm("Are you sure you want to clear all measurements and results?")
+  ) {
+    return;
+  }
+
   const numpoints = numberofpoints();
 
   let ids;
-  if (numpoints === 4 || numpoints === 5) {
-    ids = numpoints === 4 ? fourpoint : fivepoint;
+  if (numpoints === 4 || numpoints === 5 || numpoints === 6) {
+    ids = numpoints === 4 ? fourpoint : numpoints === 5 ? fivepoint : sixpoint;
   } else {
     // If no valid config, try all known IDs
-    ids = fourpoint.concat(fivepoint);
+    ids = fourpoint.concat(fivepoint).concat(sixpoint);
   }
 
   for (let i = 0; i < ids.length; i++) {
@@ -2611,7 +2901,7 @@ function disp_error() {
       perim,
       diag,
       height,
-      numberofpoints()
+      numberofpoints(),
     );
     nanReasons = reasons;
 
@@ -2620,7 +2910,7 @@ function disp_error() {
       perim,
       diag,
       height,
-      300
+      300,
     );
     const contrastExplanation = explainNanVsRms(reasons, residualResult);
 
@@ -2851,57 +3141,48 @@ function find_coord() {
   const a = [0, 0, height[0]];
   const b = [0, perimNorm[0], height[1]];
 
+  function placePoint(sideFromA, sideBetween) {
+    let angle = findAngle(sideFromA, perimNorm[0], sideBetween);
+    angle = angle < 90 ? 90 - angle : angle * -1 + 90;
+    return [
+      sideFromA * Math.cos((angle * Math.PI) / 180),
+      sideFromA * Math.sin((angle * Math.PI) / 180),
+    ];
+  }
+
   if (numpoints === 4) {
-    // Point C: use diagonal A-C and sides A-B, B-C
-    let angle = findAngle(diagNorm[0], perimNorm[0], perimNorm[1]);
-    angle = angle < 90 ? 90 - angle : angle * -1 + 90;
-    const c = [
-      diagNorm[0] * Math.cos((angle * Math.PI) / 180),
-      diagNorm[0] * Math.sin((angle * Math.PI) / 180),
-      height[2],
-    ];
-
-    // Point D: use diagonal B-D and sides A-B, D-A
-    angle = findAngle(perimNorm[3], perimNorm[0], diagNorm[1]);
-    angle = angle < 90 ? 90 - angle : angle * -1 + 90;
-    const d = [
-      perimNorm[3] * Math.cos((angle * Math.PI) / 180),
-      perimNorm[3] * Math.sin((angle * Math.PI) / 180),
-      height[3],
-    ];
-
+    // Point C: using diagonal A-C and sides A-B, B-C
+    var pos = placePoint(diagNorm[0], perimNorm[1]);
+    const c = [pos[0], pos[1], height[2]];
+    // Point D: using diagonal B-D and sides A-B, D-A
+    pos = placePoint(perimNorm[3], diagNorm[1]);
+    const d = [pos[0], pos[1], height[3]];
     return [a, b, c, d];
   }
 
-  // 5-point
-  // Point C: using diagonal A-C
-  let angle = findAngle(diagNorm[0], perimNorm[0], perimNorm[1]);
-  angle = angle < 90 ? 90 - angle : angle * -1 + 90;
-  const c = [
-    diagNorm[0] * Math.cos((angle * Math.PI) / 180),
-    diagNorm[0] * Math.sin((angle * Math.PI) / 180),
-    height[2],
-  ];
+  if (numpoints === 5) {
+    // Point C: using diagonal A-C
+    var pos = placePoint(diagNorm[0], perimNorm[1]);
+    const c = [pos[0], pos[1], height[2]];
+    // Point D: using diagonals A-D and B-D
+    pos = placePoint(diagNorm[1], diagNorm[2]);
+    const d = [pos[0], pos[1], height[3]];
+    // Point E: using diagonal B-E and sides E-A, A-B
+    pos = placePoint(perimNorm[4], diagNorm[3]);
+    const e = [pos[0], pos[1], height[4]];
+    return [a, b, c, d, e];
+  }
 
-  // Point D: using diagonals A-D and B-D
-  angle = findAngle(diagNorm[1], perimNorm[0], diagNorm[2]);
-  angle = angle < 90 ? 90 - angle : angle * -1 + 90;
-  const d = [
-    diagNorm[1] * Math.cos((angle * Math.PI) / 180),
-    diagNorm[1] * Math.sin((angle * Math.PI) / 180),
-    height[3],
-  ];
-
-  // Point E: using diagonal B-E and sides E-A, A-B
-  angle = findAngle(perimNorm[4], perimNorm[0], diagNorm[3]);
-  angle = angle < 90 ? 90 - angle : angle * -1 + 90;
-  const e = [
-    perimNorm[4] * Math.cos((angle * Math.PI) / 180),
-    perimNorm[4] * Math.sin((angle * Math.PI) / 180),
-    height[4],
-  ];
-
-  return [a, b, c, d, e];
+  // 6-point
+  var pos = placePoint(diagNorm[0], perimNorm[1]);
+  const c = [pos[0], pos[1], height[2]];
+  pos = placePoint(diagNorm[1], diagNorm[3]);
+  const d = [pos[0], pos[1], height[3]];
+  pos = placePoint(diagNorm[2], diagNorm[4]);
+  const e = [pos[0], pos[1], height[4]];
+  pos = placePoint(perimNorm[5], diagNorm[5]);
+  const f = [pos[0], pos[1], height[5]];
+  return [a, b, c, d, e, f];
 }
 
 // ============================================================
@@ -2914,8 +3195,8 @@ function find_coord() {
  */
 function draw() {
   const numpoints = numberofpoints();
-  if (numpoints !== 4 && numpoints !== 5) {
-    alert("nothing to draw, idiot");
+  if (numpoints !== 4 && numpoints !== 5 && numpoints !== 6) {
+    alert("nothing to draw");
     return;
   }
 
@@ -2926,7 +3207,7 @@ function draw() {
   }
 
   const coords = find_coord();
-  const labels = ["A", "B", "C", "D", "E"];
+  const labels = ["A", "B", "C", "D", "E", "F"];
   const xs = coords.map(function (p) {
     return p[0];
   });
