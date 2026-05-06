@@ -2,6 +2,7 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shade Calculator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
@@ -10,6 +11,9 @@
         
 </head>
 <style>
+    * {
+        box-sizing: border-box;
+    }
     body {
         margin: 0;
         background: #f3f5f8;
@@ -24,6 +28,14 @@
     .app-header {
         text-align: center;
         margin-bottom: 10px;
+    }
+    .app-header h1 {
+        font-size: clamp(1.1rem, 5vw, 1.75rem);
+        margin: 8px 0;
+    }
+    .app-header img {
+        max-width: 80px;
+        height: auto;
     }
     .center {
         display: block;
@@ -48,19 +60,45 @@
     }
     input[type='number'],
     input[type='text'],
-    select,
-    input[type='button'] {
-        font-size: 16px;
-        padding: 6px 8px;
-    }
-    input[type='number'],
-    input[type='text'],
     select {
+        font-size: 16px;
+        padding: 10px 8px;
         width: 100%;
         max-width: 220px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+    }
+    input[type='button'] {
+        font-size: 16px;
+        padding: 10px 14px;
+        min-height: 44px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #f0f0f0;
+        cursor: pointer;
+    }
+    input[type='button']:hover {
+        filter: brightness(0.95);
+    }
+    input[type='button']:active {
+        filter: brightness(0.85);
     }
     .action-btn {
         width: 100%;
+    }
+    .btn-group-mobile {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .btn-group-mobile > * {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .btn-group-mobile input[type='button'] {
+        font-size: 14px;
+        padding: 10px 8px;
+        white-space: nowrap;
     }
     .center-actions {
         justify-content: center;
@@ -71,14 +109,140 @@
         color: #fff;
         border: none;
         border-radius: 6px;
-        padding: 6px 12px;
+        padding: 10px 14px;
+        min-height: 44px;
         font-size: 14px;
         cursor: pointer;
         margin-top: 6px;
+        width: 100%;
     }
     .undo-btn:hover {
         background-color: #4f46e5;
     }
+    /* Save/Load area */
+    .save-load-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+    .save-load-row > * {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .save-load-row input[type='text'] {
+        max-width: 100%;
+    }
+    .save-load-row select {
+        max-width: 100%;
+    }
+
+/* Sail Configuration section */
+.sail-config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+}
+.sail-config-row .ptr-btn {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 8px;
+    min-height: 44px;
+    border: 2px solid #d9dee5;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1f2937;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+.sail-config-row .ptr-btn:hover {
+    filter: brightness(0.95);
+    border-color: #6366f1;
+}
+.sail-config-row .ptr-btn.active {
+    background: #6366f1;
+    color: #fff;
+    border-color: #6366f1;
+}
+.sail-config-row .ptr-btn.active:hover {
+    background: #4f46e5;
+}
+.sail-config-row .example-btn {
+    font-size: 13px;
+    padding: 6px 12px;
+    min-height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #6366f1;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.sail-config-row .example-btn:hover {
+    color: #4f46e5;
+}
+
+/* Saved Sets 2-column grid */
+.saved-sets-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+}
+.saved-sets-grid input[type='text'],
+.saved-sets-grid select {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+.saved-sets-grid input[type='button'],
+.saved-sets-grid button {
+    width: 100%;
+    padding: 10px 8px;
+    min-height: 44px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f0f0f0;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.saved-sets-grid input[type='button']:hover,
+.saved-sets-grid button:hover {
+    filter: brightness(0.95);
+}
+.saved-sets-grid input[type='button']:active,
+.saved-sets-grid button:active {
+    filter: brightness(0.85);
+}
+/* Section divider */
+.section-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.section-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 12px 0;
+}
+@media (min-width: 768px) {
+    .saved-sets-grid input[type='text'],
+    .saved-sets-grid select {
+        max-width: 100%;
+    }
+}
     /* Change history */
     #changeLog {
         font-size: 13px;
@@ -89,6 +253,7 @@
         font-weight: bold;
         cursor: pointer;
         text-align: center;
+        padding: 8px;
     }
     #changeLog table {
         width: 100%;
@@ -135,10 +300,72 @@
         border: 1px solid #dddddd;
         padding: 8px;
         overflow-x: auto;
+        font-size: clamp(11px, 3vw, 14px);
     }
     details summary {
         cursor: pointer;
         font-weight: bold;
+    }
+    /* Measurement table - mobile friendly */
+    .meas-table {
+        width: auto;
+        margin: 0 auto;
+        border-collapse: collapse;
+    }
+    .meas-table td {
+        padding: 6px 4px;
+    }
+    .meas-table input[type='number'] {
+        max-width: 100%;
+        width: 100%;
+        padding: 10px 8px;
+        font-size: 16px;
+        text-align: center;
+    }
+    .meas-table th {
+        padding: 8px 4px;
+        font-size: clamp(13px, 3.5vw, 15px);
+    }
+    .meas-section-header {
+        background: #f0f4ff;
+        font-weight: bold;
+        text-align: center;
+    }
+    .meas-label {
+        font-weight: 600;
+        font-size: clamp(13px, 3.5vw, 15px);
+        white-space: nowrap;
+        padding-right: 8px;
+    }
+    /* Scrollable table wrapper */
+    .table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -4px;
+        padding: 0 4px;
+    }
+    .table-scroll table {
+        min-width: 600px;
+    }
+    .table-scroll-hint {
+        font-size: 12px;
+        color: #888;
+        text-align: center;
+        margin-bottom: 4px;
+    }
+    /* Recommendation table scrollable on mobile */
+    .rec-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .rec-table-wrap table {
+        min-width: 500px;
+    }
+    /* Responsive results grid */
+    .results-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
     @media (min-width: 768px) {
         .row-wrap > * {
@@ -155,8 +382,181 @@
         .results-grid #recommendations {
             grid-column: 1 / -1;
         }
+        .undo-btn {
+            width: auto;
+        }
+        .btn-group-mobile input[type='button'] {
+            font-size: 16px;
+            padding: 10px 14px;
+        }
+        .meas-table input[type='number'] {
+            max-width: 160px;
+            width: 160px;
+        }
+        .save-load-row {
+            flex-wrap: nowrap;
+        }
+        .save-load-row input[type='text'] {
+            max-width: 180px;
+        }
+        .save-load-row select {
+            max-width: 220px;
+        }
     }
-    </style>
+    /* Small phone adjustments */
+    @media (max-width: 380px) {
+        .app {
+            padding: 6px;
+        }
+        .card {
+            padding: 8px;
+        }
+        .btn-group-mobile input[type='button'] {
+            font-size: 12px;
+            padding: 8px 4px;
+        }
+    }
+
+/* Tab Navigation */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+.tab-btn {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border: 1px solid #d9dee5;
+    border-radius: 8px 8px 0 0;
+    background: #e8eaed;
+    color: #6b7280;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    min-height: 44px;
+}
+.tab-btn.active {
+    background: #ffffff;
+    color: #1f2937;
+    border-bottom-color: #ffffff;
+}
+.tab-btn:hover {
+    filter: brightness(0.95);
+}
+.tab-btn .badge {
+    display: inline-block;
+    background: #6366f1;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* Saved Sets Manager */
+#tab-saved-sets {
+    display: none;
+}
+.saved-sets-mgr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.saved-sets-mgr-actions input[type='button'] {
+    flex: 1 1 auto;
+    min-width: 100px;
+}
+.saved-sets-table-wrap {
+    overflow-x: auto;
+}
+.saved-sets-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.saved-sets-table th {
+    background: #f0f4ff;
+    padding: 8px 6px;
+    border: 1px solid #d9dee5;
+    text-align: center;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+.saved-sets-table th:hover {
+    filter: brightness(0.95);
+}
+.saved-sets-table th .sort-arrow {
+    margin-left: 4px;
+    font-size: 11px;
+}
+.saved-sets-table td {
+    padding: 8px 6px;
+    border: 1px solid #d9dee5;
+    text-align: center;
+    vertical-align: middle;
+}
+.saved-sets-table .set-name {
+    font-weight: 600;
+    text-align: left;
+}
+.saved-sets-table .set-actions {
+    white-space: nowrap;
+}
+.saved-sets-table .set-actions button {
+    font-size: 13px;
+    padding: 6px 10px;
+    min-height: 0;
+    margin: 2px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #f0f0f0;
+}
+.saved-sets-table .set-actions .btn-load {
+    background: #6366f1;
+    color: #fff;
+    border-color: #6366f1;
+}
+.saved-sets-table .set-actions .btn-load:hover {
+    background: #4f46e5;
+}
+.saved-sets-table .set-actions .btn-del {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
+.saved-sets-table .set-actions .btn-del:hover {
+    background: #dc2626;
+}
+.saved-sets-table .set-actions .btn-export {
+    background: #f0f0f0;
+}
+.saved-sets-empty {
+    text-align: center;
+    padding: 30px 10px;
+    color: #888;
+    font-size: 15px;
+}
+.mgr-danger-zone {
+    margin-top: 12px;
+    text-align: center;
+}
+@media (min-width: 768px) {
+    .tab-btn {
+        flex: 0 1 auto;
+        padding: 12px 24px;
+    }
+    .saved-sets-mgr-actions input[type='button'] {
+        flex: 0 1 auto;
+    }
+}
+</style>
 
 <body>
     <div class="app">
@@ -165,20 +565,40 @@
             <h1>ASS Shade Calculator</h1>
         </div>
 
+        <!-- Tab Navigation -->
+        <div class="tab-bar">
+            <div class="tab-btn active" id="tabBtnCalculator" onclick="switchTab('calculator');">Calculator</div>
+            <div class="tab-btn" id="tabBtnSavedSets" onclick="switchTab('saved-sets');">Saved Sets <span class="badge" id="savedSetsBadge">0</span></div>
+        </div>
+
+        <!-- Calculator Tab -->
+        <div id="tab-calculator" style="display:block;">
+
         <div class="card">
-            <div class="row-wrap">
-                <label>Number of points</label>
-                <input class="action-btn" type="button" value="4 pointer" onclick="test4=['','','','','','','','','','']; measurements(4);" />
-                <input class="action-btn" type="button" value="5 pointer" onclick="test5=['','','','','','','','','','','','','','','']; measurements(5);" />
-                <input class="action-btn" type="button" value="Example 5 pointer" onclick="example5();" />
+            <!-- Sail Configuration -->
+            <div class="section-header">Sail Configuration</div>
+            <div class="sail-config-row">
+                <input type="button" class="ptr-btn active" data-ptr="4" value="4 pointer" onclick="measurements(4);" />
+                <input type="button" class="ptr-btn" data-ptr="5" value="5 pointer" onclick="measurements(5);" />
             </div>
-            <div class="row-wrap" style="margin-top: 8px;">
-                <div>
-                    Save name <input type="text" id="saveName" size="14" placeholder="e.g. Backyard v2" />
-                </div>
-                <input class="action-btn" type="button" value="Save Measurements" onclick="save_measurements();" />
-                <input class="action-btn" type="button" value="Load Measurements" onclick="load_measurements();" />
-                <div>Saved sets <select id="savedSets"></select></div>
+            <div style="text-align: center; margin-top: 6px;">
+                <button class="example-btn" onclick="example5();">Example &#9656;</button>
+            </div>
+
+            <hr class="section-divider" />
+
+            <!-- Saved Sets -->
+            <div class="section-header">Saved Sets</div>
+            <div class="saved-sets-grid">
+                <input type="text" id="saveName" placeholder="Save name" />
+                <select id="savedSets" style="width: 100%;">
+                    <option selected disabled hidden>Load a set:</option>
+                </select>
+                <input type="button" value="Save" onclick="save_measurements();" />
+                <input type="button" value="Load" onclick="load_measurements();" />
+            </div>
+            <div style="margin-top: 6px; text-align: center;">
+                <span id="autosaveIndicator" style="font-size: 12px; color: #888;"></span>
             </div>
         </div>
 
@@ -192,10 +612,10 @@
         <div class="card">
             <div class="row-wrap center-actions">
                 <input class="action-btn" type="button" value="Calculate Error" onclick="disp_error();" />
-                <div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;">
                     <label for="autoUpdateToggle">Auto update:</label>
                     <input type="checkbox" id="autoUpdateToggle" disabled />
-                    <span id="autoUpdateStatus">OFF (press Calculate Error first)</span>
+                    <span id="autoUpdateStatus" style="font-size: 13px;">OFF (press Calculate Error first)</span>
                 </div>
             </div>
         </div>
@@ -207,7 +627,7 @@
         </div>
 
         <div class="card">
-            <h3 style="margin: 0 0 10px 0; text-align: center;">Error Sweep Table</h3>
+            <h3 style="margin: 0 0 10px 0; text-align: center; font-size: clamp(14px, 4vw, 18px);">Error Sweep Table</h3>
             <div class="row-wrap center-actions" style="margin-top: 4px; margin-bottom: 10px;">
                 <div>
                     Adjust size (mm) <input type="number" id="size" size='2' />
@@ -221,7 +641,7 @@
 
         <div class="card">
             <div class="row-wrap center-actions" style="margin-bottom: 10px;">
-                <input class="action-btn" style="background-color: orange" type="button" value="DRAW" onclick="draw();" />
+                <input class="action-btn" style="background-color: orange; color: #fff; border: none;" type="button" value="DRAW" onclick="draw();" />
             </div>
             <div id="drawing" align="center"></div>
         </div>
@@ -266,6 +686,28 @@ RMS mismatch = "typical" residual size across all lines (in mm)</div>
                 while residual fit is strict about distance consistency (works better with internal/reflex corners too).
             </p>
             </details>
+        </div>
+
+        </div>
+        <!-- Saved Sets Manager Tab -->
+        <div id="tab-saved-sets" style="display:none;">
+            <div class="card">
+                <div class="section-header">Import / Export</div>
+                <div class="saved-sets-mgr-actions">
+                    <input type="button" value="📥 Import" onclick="document.getElementById('importFileInput').click();" />
+                    <input type="button" value="📤 Export All" onclick="exportAllSets();" />
+                    <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importSavedSets(event);" />
+                </div>
+            </div>
+            <div class="card">
+                <div class="section-header">Saved Sets</div>
+                <div id="savedSetsManager">
+                    <div class="saved-sets-empty">Loading...</div>
+                </div>
+                <div class="mgr-danger-zone">
+                    <input type="button" class="btn-danger" value="Delete All Sets" onclick="deleteAllSavedSets();" />
+                </div>
+            </div>
         </div>
 
         <script src='./shadecode.js'></script>
