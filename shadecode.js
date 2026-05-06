@@ -156,7 +156,7 @@ function measurements(numpoints) {
   // heights = remaining labels after perim + diag
 
   let html =
-    '<table class="meas-table" cellpadding="0" cellspacing="0" align="center">';
+    '<div class="table-scroll"><table class="meas-table" cellpadding="0" cellspacing="0" align="center">';
 
   // Perimeters section
   html +=
@@ -215,7 +215,7 @@ function measurements(numpoints) {
     labelIdx++;
   }
 
-  html += "</table>";
+  html += "</table></div>";
 
   document.getElementById("measurements").innerHTML = html;
   wireAutoErrorInputs(numpoints);

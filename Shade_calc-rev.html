@@ -64,7 +64,6 @@
         font-size: 16px;
         padding: 10px 8px;
         width: 100%;
-        max-width: 220px;
         border: 1px solid #ccc;
         border-radius: 6px;
     }
@@ -312,19 +311,22 @@
         margin: 0 auto;
         border-collapse: collapse;
     }
-    .meas-table td {
-        padding: 6px 4px;
-    }
-    .meas-table input[type='number'] {
-        max-width: 100%;
-        width: 100%;
-        padding: 10px 8px;
-        font-size: 16px;
-        text-align: center;
-    }
     .meas-table th {
         padding: 8px 4px;
         font-size: clamp(13px, 3.5vw, 15px);
+    }
+    .meas-table input[type='number'] {
+        width: 100%;
+        max-width: none;
+        min-width: 100px;
+        padding: 10px 8px;
+        font-size: 16px;
+        text-align: center;
+        box-sizing: border-box;
+    }
+    .meas-table td {
+        padding: 6px 4px;
+        width: auto;
     }
     .meas-section-header {
         background: #f0f4ff;
@@ -388,10 +390,6 @@
         .btn-group-mobile input[type='button'] {
             font-size: 16px;
             padding: 10px 14px;
-        }
-        .meas-table input[type='number'] {
-            max-width: 160px;
-            width: 160px;
         }
         .save-load-row {
             flex-wrap: nowrap;
